@@ -23,7 +23,7 @@ def setup_environment():
         if not os.path.exists(directory):
             os.makedirs(directory)
             print(f"디렉토리 생성: {directory}")
-ㄱ
+
 
 if __name__ == "__main__":
     # 환경 설정

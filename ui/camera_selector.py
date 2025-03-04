@@ -2,9 +2,10 @@
 # -*- coding: utf-8 -*-
 
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
-                             QLabel, QComboBox, QPushButton, QGroupBox,
-                             QGridLayout)
+                            QLabel, QComboBox, QPushButton, QGroupBox,
+                            QGridLayout)
 from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtGui import QFont
 
 
 class CameraSelector(QWidget):
@@ -90,3 +91,19 @@ class CameraSelector(QWidget):
         """카메라 연결 상태 업데이트"""
         self.connect_button.setEnabled(not connected)
         self.disconnect_button.setEnabled(connected)
+
+    def update_font_sizes(self, font_size):
+        """UI 요소의 폰트 크기 업데이트"""
+        font = QFont()
+        font.setPointSize(font_size)
+
+        self.setFont(font)
+
+        for widget in self.findChildren(QLabel):
+            widget.setFont(font)
+
+        for widget in self.findChildren(QPushButton):
+            widget.setFont(font)
+
+        for widget in self.findChildren(QComboBox):
+            widget.setFont(font)

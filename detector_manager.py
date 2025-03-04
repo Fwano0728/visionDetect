@@ -37,16 +37,100 @@ class DetectorManager(QObject):
 
         # YOLO 탐지기
         self.detectors["YOLO"] = {
-            "versions": ["v4", "v5", "v7", "v8"],
+            "versions": ["v4"],  # 실제 모델 확인 후 필터링될 것임
             "models": {
                 "v4": ["YOLOv4-tiny", "YOLOv4"],
-                "v5": ["YOLOv5n", "YOLOv5s", "YOLOv5m"],
-                "v7": ["YOLOv7-tiny", "YOLOv7"],
-                "v8": ["YOLOv8n", "YOLOv8s", "YOLOv8x"]
             },
             "init_func": self._init_yolo_detector,
             "detect_func": self._detect_yolo
         }
+
+        # 모델 파일 존재 여부 확인 및 모델 목록 필터링
+        self._verify_model_files()
+
+    def _verify_model_files(self):
+        """각 모델의 파일 존재 여부 확인하고 실제 사용 가능한 모델 목록 업데이트"""
+        models_dir = "models/yolo"
+
+        # YOLO 모델 확인
+        if "YOLO" in self.detectors:
+            for version, models in list(self.detectors["YOLO"]["models"].items()):
+                available_models = []
+                for model_name in models:
+                    # 모델별 파일 경로 확인
+                    if version == "v4":
+                        if model_name == "YOLOv4-tiny":
+                            weights_path = os.path.join(models_dir, "yolov4-tiny.weights")
+                            config_path = os.path.join(models_dir, "yolov4-tiny.cfg")
+                        elif model_name == "YOLOv4":
+                            weights_path = os.path.join(models_dir, "yolov4.weights")
+                            config_path = os.path.join(models_dir, "yolov4.cfg")
+                        else:
+                            continue
+
+                        # 파일 존재 여부 확인
+                        if os.path.exists(weights_path) and os.path.exists(config_path):
+                            available_models.append(model_name)
+                            print(f"YOLO 모델 발견: {model_name}")
+
+                    # YOLOv5 모델 (아직 구현되지 않음, 미래 확장성을 위한 자리 표시자)
+                    elif version == "v5":
+                        # v5는 파일이 없으므로 모델 목록에 추가하지 않음
+                        continue
+
+                    # YOLOv8 모델 (Ultralytics)
+                    elif version == "v8":
+                        try:
+                            # Ultralytics 설치 여부 확인
+                            import importlib.util
+                            ultralytics_spec = importlib.util.find_spec("ultralytics")
+                            if ultralytics_spec is not None:
+                                # 패키지 설치됨, 이제 모델 파일 확인
+                                model_file = None
+                                if model_name == "YOLOv8n":
+                                    model_file = "yolov8n.pt"
+                                elif model_name == "YOLOv8s":
+                                    model_file = "yolov8s.pt"
+                                elif model_name == "YOLOv8m":
+                                    model_file = "yolov8m.pt"
+                                elif model_name == "YOLOv8l":
+                                    model_file = "yolov8l.pt"
+                                elif model_name == "YOLOv8x":
+                                    model_file = "yolov8x.pt"
+
+                                # 모델 파일 존재 여부 확인
+                                if model_file and (
+                                        os.path.exists(os.path.join(models_dir, model_file)) or
+                                        os.path.exists(model_file)
+                                ):
+                                    available_models.append(model_name)
+                                    print(f"YOLO 모델 발견: {model_name}")
+                        except:
+                            # Ultralytics 패키지가 설치되지 않음
+                            pass
+
+                # 사용 가능한 모델 목록 업데이트
+                if available_models:
+                    self.detectors["YOLO"]["models"][version] = available_models
+                else:
+                    # 사용 가능한 모델이 없는 버전은 목록에서 제거
+                    if version in self.detectors["YOLO"]["versions"]:
+                        self.detectors["YOLO"]["versions"].remove(version)
+                    del self.detectors["YOLO"]["models"][version]
+
+            # 가능한 버전이 없으면 빈 리스트로 설정
+            if not self.detectors["YOLO"]["versions"]:
+                print("사용 가능한 YOLO 모델이 없습니다.")
+                # 기본값으로 v4를 유지하되 모델 없음을 표시
+                self.detectors["YOLO"]["versions"] = ["v4"]
+                self.detectors["YOLO"]["models"]["v4"] = []
+
+    def _check_model_downloadable(self, model_file):
+        """모델이 자동으로 다운로드 가능한지 확인"""
+        # YOLOv8 모델은 자동 다운로드 지원
+        if model_file.startswith("yolov8"):
+            return True
+        return False
 
     def get_available_detectors(self):
         """사용 가능한 탐지기 목록 반환"""
@@ -60,9 +144,8 @@ class DetectorManager(QObject):
 
     def get_available_models(self, detector_type, version):
         """사용 가능한 모델 목록 반환"""
-        if detector_type in self.detectors:
-            if version in self.detectors[detector_type]["models"]:
-                return self.detectors[detector_type]["models"][version]
+        if detector_type in self.detectors and version in self.detectors[detector_type]["models"]:
+            return self.detectors[detector_type]["models"][version]
         return []
 
     def set_detector(self, detector_type, version=None, model=None, **params):
@@ -113,22 +196,44 @@ class DetectorManager(QObject):
         """탐지기 활성화 상태 확인"""
         return self.detector_type is not None
 
-    def detect(self, frame):
-        """객체 탐지 수행"""
+    def detect(self, frame, text_scale=1.0):
+        """객체 탐지 수행 - 텍스트 스케일 추가"""
         if not self.detector_type:
             return frame, [], "탐지기가 설정되지 않았습니다."
 
         if self.detector_type in self.detectors:
             detect_func = self.detectors[self.detector_type]["detect_func"]
             start_time = time.time()
-            result_frame, detections = detect_func(frame)
+
+            # YOLO 탐지에 text_scale 전달
+            if self.detector_type == "YOLO":
+                # text_scale 파라미터를 _detect_yolov4 함수에 전달
+                result_frame, detections = self._detect_yolov4(frame, text_scale)
+            else:
+                result_frame, detections = detect_func(frame)
+
             detection_time = time.time() - start_time
 
             # 결과 텍스트 생성
             person_count = sum(1 for d in detections if d.get("class_name", "").lower() == "person")
             result_text = f"탐지된 사람: {person_count}명"
-            if len(detections) > person_count:
-                result_text += f"\n기타 객체: {len(detections) - person_count}개"
+
+            # 기타 객체 카운트
+            other_objects = {}
+            for d in detections:
+                class_name = d.get("class_name", "").lower()
+                if class_name != "person":
+                    other_objects[class_name] = other_objects.get(class_name, 0) + 1
+
+            # 기타 객체가 있으면 표시
+            if other_objects:
+                other_count = sum(other_objects.values())
+                result_text += f"\n기타 객체: {other_count}개"
+
+                # 상세 내역 추가
+                for obj_name, count in other_objects.items():
+                    if len(other_objects) <= 3:  # 객체가 3개 이하일 때만 상세 표시
+                        result_text += f"\n - {obj_name}: {count}개"
 
             result_text += f"\n처리 시간: {detection_time:.3f}초"
             self.detection_result_signal.emit(result_text)
@@ -268,17 +373,18 @@ class DetectorManager(QObject):
             traceback.print_exc()
             return False, f"YOLO 모델 로드 실패: {str(e)}"
 
-    def _detect_yolo(self, frame):
+    def _detect_yolo(self, frame, text_scale=1.0):
         """YOLO를 사용한 객체 탐지"""
-        if self.detector_version == "v8" and hasattr(self, 'yolo8_model'):
-            return self._detect_yolov8(frame)
-        elif hasattr(self, 'yolo_net'):
-            return self._detect_yolov4(frame)
+        if self.detector_version == "v4" and hasattr(self, 'yolo_net'):
+            return self._detect_yolov4(frame, text_scale)
+        elif self.detector_version == "v8" and hasattr(self, 'yolo8_model'):
+            return self._detect_yolov8(frame, text_scale)
+        else:
+            print(f"지원되지 않는 YOLO 버전: {self.detector_version}")
+            return frame, []
 
-        return frame, []
-
-    def _detect_yolov4(self, frame):
-        """YOLOv4를 사용한 객체 탐지"""
+    def _detect_yolov4(self, frame, text_scale=1.0):
+        """YOLOv4를 사용한 객체 탐지 - 텍스트 스케일 조정 추가"""
         # 매개변수
         conf_threshold = self.detector_params.get('conf_threshold', 0.4)
         nms_threshold = self.detector_params.get('nms_threshold', 0.4)
@@ -350,8 +456,31 @@ class DetectorManager(QObject):
                 # 박스 그리기
                 color = (0, 255, 0) if class_name.lower() == "person" else (255, 0, 0)
                 cv2.rectangle(result_frame, (x, y), (x + w, y + h), color, 2)
-                cv2.putText(result_frame, f'{class_name} {confidence:.2f}',
-                            (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+                # 텍스트 크기 조정 (해상도에 따라)
+                font_scale = max(0.5 * text_scale, 0.4)  # 최소 크기 제한
+                font_thickness = 1 if text_scale < 1.0 else 2
+
+                # 텍스트 레이블 추가
+                label = f'{class_name} {confidence:.2f}'
+                (label_width, label_height), baseline = cv2.getTextSize(
+                    label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)
+
+                # 텍스트 배경 그리기
+                cv2.rectangle(result_frame,
+                              (x, y - label_height - 10),
+                              (x + label_width, y),
+                              color,
+                              -1)  # 채워진 사각형
+
+                # 텍스트 추가 - 색상을 검정색으로 설정하여 보이게 함
+                cv2.putText(result_frame,
+                            label,
+                            (x, y - 5),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            font_scale,
+                            (0, 0, 0),  # 검정색 텍스트
+                            font_thickness)
 
                 # 탐지 정보 저장
                 detections.append({
@@ -363,31 +492,73 @@ class DetectorManager(QObject):
 
         return result_frame, detections
 
-    def _detect_yolov8(self, frame):
-        """YOLOv8을 사용한 객체 탐지"""
-        # 매개변수
-        conf_threshold = self.detector_params.get('conf_threshold', 0.4)
+    def _detect_yolov8(self, frame, text_scale=1.0):
+        """YOLOv8을 사용한 객체 탐지 - 텍스트 스케일 조정 추가"""
+        try:
+            # 매개변수
+            conf_threshold = self.detector_params.get('conf_threshold', 0.4)
 
-        # 모델 실행
-        results = self.yolo8_model(frame, conf=conf_threshold)
-        result = results[0]  # 첫 번째 결과
+            # 모델 실행
+            results = self.yolo8_model(frame, conf=conf_threshold)
+            result = results[0]  # 첫 번째 결과
 
-        # 결과 이미지
-        result_frame = result.plot()
+            # 결과 이미지
+            result_frame = frame.copy()
 
-        # 탐지 정보 가져오기
-        detections = []
-        for box in result.boxes:
-            x1, y1, x2, y2 = box.xyxy[0].tolist()
-            confidence = box.conf[0].item()
-            class_id = int(box.cls[0].item())
-            class_name = result.names[class_id]
+            # 탐지 정보 가져오기
+            detections = []
 
-            detections.append({
-                "class_id": class_id,
-                "class_name": class_name,
-                "confidence": confidence,
-                "box": [int(x1), int(y1), int(x2 - x1), int(y2 - y1)]
-            })
+            for box in result.boxes:
+                x1, y1, x2, y2 = box.xyxy[0].tolist()
+                confidence = box.conf[0].item()
+                class_id = int(box.cls[0].item())
+                class_name = result.names[class_id]
 
-        return result_frame, detections
+                # 좌표 정수형으로 변환
+                x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+                w, h = x2 - x1, y2 - y1
+
+                # 박스 그리기
+                color = (0, 255, 0) if class_name.lower() == "person" else (255, 0, 0)
+                cv2.rectangle(result_frame, (x1, y1), (x2, y2), color, 2)
+
+                # 텍스트 크기 조정 (해상도에 따라)
+                font_scale = max(0.5 * text_scale, 0.4)  # 최소 크기 제한
+                font_thickness = 1 if text_scale < 1.0 else 2
+
+                # 텍스트 레이블 추가
+                label = f'{class_name} {confidence:.2f}'
+                (label_width, label_height), baseline = cv2.getTextSize(
+                    label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)
+
+                # 텍스트 배경 그리기
+                cv2.rectangle(result_frame,
+                              (x1, y1 - label_height - 10),
+                              (x1 + label_width, y1),
+                              color,
+                              -1)  # 채워진 사각형
+
+                # 텍스트 추가 - 검정색으로 설정하여 가독성 향상
+                cv2.putText(result_frame,
+                            label,
+                            (x1, y1 - 5),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            font_scale,
+                            (0, 0, 0),  # 검정색 텍스트
+                            font_thickness)
+
+                # 탐지 정보 저장
+                detections.append({
+                    "class_id": class_id,
+                    "class_name": class_name,
+                    "confidence": confidence,
+                    "box": [x1, y1, w, h]
+                })
+
+            return result_frame, detections
+
+        except Exception as e:
+            print(f"YOLOv8 탐지 오류: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return frame, []

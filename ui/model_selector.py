@@ -2,9 +2,10 @@
 # -*- coding: utf-8 -*-
 
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
-                             QLabel, QComboBox, QPushButton, QGroupBox,
-                             QGridLayout, QCheckBox, QSlider)
+                            QLabel, QComboBox, QPushButton, QGroupBox,
+                            QGridLayout, QCheckBox, QSlider)
 from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtGui import QFont
 
 
 class ModelSelector(QWidget):
@@ -122,9 +123,18 @@ class ModelSelector(QWidget):
 
     def on_yolo_version_changed(self, version):
         """YOLO 버전 변경 시 모델 목록 업데이트"""
+        # 모델 콤보박스 활성화
+        self.yolo_model_combo.setEnabled(True)
+
+        # 모델 목록 업데이트
         self.yolo_model_combo.clear()
         models = self.detector_manager.get_available_models("YOLO", version)
-        self.yolo_model_combo.addItems(models)
+
+        if models:
+            self.yolo_model_combo.addItems(models)
+        else:
+            self.yolo_model_combo.addItem("사용 가능한 모델 없음")
+            self.yolo_model_combo.setEnabled(False)
 
     def update_confidence_value(self, value):
         """신뢰도 슬라이더 값 변경 시 레이블 업데이트"""
@@ -176,27 +186,16 @@ class ModelSelector(QWidget):
         # 결과 표시
         if success:
             self.update_detector_info()
+            self.statusBar.showMessage(f"탐지기 설정 적용됨: {message}")
         else:
-            # 오류 처리 (실제 구현 시 메시지 박스 등으로 표시)
-            print(f"탐지기 설정 실패: {message}")
-
-        # 시그널 발생
-        if detector_type == "YOLO":
-            self.detector_activated.emit(
-                detector_type,
-                self.yolo_version_combo.currentText(),
-                self.yolo_model_combo.currentText(),
-                params
-            )
-        else:
-            self.detector_activated.emit(detector_type, "", "", {})
+            self.statusBar.showMessage(f"탐지기 설정 실패: {message}")
 
     def update_detector_info(self):
         """현재 설정된 탐지기 정보 업데이트"""
         info = self.detector_manager.get_current_detector_info()
 
         if info.get("status") == "미설정":
-            self.current_settings_label.setText("탐지기가 설정되지 않았습니다.")
+            self.current_detector_info.setText("탐지기가 설정되지 않았습니다.")
             return
 
         # 정보 텍스트 구성
@@ -205,19 +204,19 @@ class ModelSelector(QWidget):
         model = info.get("model", "")
         params = info.get("params", {})
 
-        text = f"탐지기: {detector_type}"
+        text = f"현재 탐지 모드: {detector_type}"
         if version:
-            text += f"\n버전: {version}"
+            text += f" {version}"
         if model:
-            text += f"\n모델: {model}"
+            text += f" - {model}"
 
         # 매개변수 표시
         if params:
-            text += "\n매개변수:"
-            for key, value in params.items():
-                text += f"\n - {key}: {value}"
+            conf = params.get('conf_threshold', 0)
+            if conf:
+                text += f" (신뢰도 임계값: {conf:.2f})"
 
-        self.current_settings_label.setText(text)
+        self.current_detector_info.setText(text)
 
     def enable_detection_controls(self, enabled):
         """탐지 컨트롤 활성화/비활성화"""
@@ -227,3 +226,22 @@ class ModelSelector(QWidget):
         self.detection_mode_combo.setEnabled(should_enable)
         self.apply_button.setEnabled(should_enable)
         self.yolo_settings.setEnabled(should_enable)
+
+    def update_font_sizes(self, font_size):
+        """UI 요소의 폰트 크기 업데이트"""
+        font = QFont()
+        font.setPointSize(font_size)
+
+        self.setFont(font)
+
+        for widget in self.findChildren(QLabel):
+            widget.setFont(font)
+
+        for widget in self.findChildren(QPushButton):
+            widget.setFont(font)
+
+        for widget in self.findChildren(QComboBox):
+            widget.setFont(font)
+
+        for widget in self.findChildren(QCheckBox):
+            widget.setFont(font)
