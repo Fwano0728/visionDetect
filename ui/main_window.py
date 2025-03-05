@@ -1,27 +1,32 @@
 # ui/main_window.py
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QLabel, QSplitter, QFrame, QStatusBar, QSizePolicy,
-                             QPushButton, QComboBox, QGroupBox, QGridLayout,
-                             QCheckBox, QSlider)
-from PyQt5.QtCore import Qt, pyqtSlot
-from PyQt5.QtGui import QPixmap, QImage, QFont
-
-from ui.camera_selector import CameraSelector
-from ui.model_selector import ModelSelector
-from ui.camera_manager import CameraManager
-from detector_manager import DetectorManager
+                             QPushButton, QComboBox, QAction, QDialog, QMessageBox)
+from PyQt5.QtCore import Qt, pyqtSlot, QSize, QTimer
+from PyQt5.QtGui import QPixmap, QImage
+from PyQt5 import uic
+import os
 import cv2
 import time
+
+# 다이얼로그 클래스 임포트
+from ui.camera_settings_dialog import CameraSettingsDialog
+from ui.detector_settings_dialog import DetectorSettingsDialog
+from ui.object_selection_dialog import ObjectSelectionDialog
+
+# 매니저 클래스 임포트
+from ui.camera_manager import CameraManager
+from detector_manager import DetectorManager
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        # 기본 윈도우 설정
-        self.setWindowTitle("객체 탐지 시스템")
-        self.setMinimumSize(1280, 800)
-        self.resize(1280, 800)
+        # UI 파일 로드
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        ui_file = os.path.join(current_dir, 'ui_files', 'main_window.ui')
+        uic.loadUi(ui_file, self)
 
         # 매니저 초기화
         self.camera_manager = CameraManager()
@@ -30,196 +35,33 @@ class MainWindow(QMainWindow):
         # 마지막 프레임 초기화
         self.last_frame = None
 
-        # UI 요소 초기화
-        self.init_ui()
+        # YOLO 설정 저장 변수 초기화
+        self.saved_detection_mode = "YOLO"
+        self.saved_yolo_version = "v4"
+        self.saved_yolo_model = "YOLOv4-tiny"
+        self.saved_confidence = 40
+
+        # 객체 선택 상태 (기본적으로 모든 객체 선택)
+        self.selected_objects = {}
+        try:
+            with open("models/yolo/coco.names", "r") as f:
+                coco_classes = f.read().strip().split("\n")
+                self.selected_objects = {cls: (cls == "person") for cls in coco_classes}
+        except:
+            # 파일을 찾을 수 없으면 기본값으로 person만 선택
+            self.selected_objects = {"person": True}
+
+        # 커넥션 상태
+        self.is_camera_connected = False
+
+        # 탐지 횟수 업데이트 타이머
+        self.detection_count_timer = QTimer(self)
+        self.detection_count_timer.setInterval(1000)  # 1초마다 업데이트
+        self.detection_count_timer.timeout.connect(self.update_detection_counts_in_dialogs)
+        self.detection_count_timer.start()
 
         # 시그널 연결
         self.connect_signals()
-
-    def init_ui(self):
-        """UI 컴포넌트 초기화"""
-        # 중앙 위젯
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-
-        # 메인 레이아웃 - 세로 레이아웃
-        main_layout = QVBoxLayout(central_widget)
-        main_layout.setSpacing(5)
-
-        # 상단 패널 영역 (카메라 설정 + 객체 탐지 설정)
-        top_panel = QWidget()
-        top_layout = QHBoxLayout(top_panel)
-        top_layout.setContentsMargins(0, 0, 0, 0)
-
-        # 1. 카메라 설정 (가로로 넓게)
-        camera_group = QGroupBox("카메라 설정")
-        camera_layout = QHBoxLayout()  # 가로 레이아웃으로 변경
-        camera_layout.setContentsMargins(5, 5, 5, 5)
-
-        # 카메라 설정 왼쪽 부분 (라벨 + 콤보박스)
-        camera_left_layout = QVBoxLayout()
-
-        # 카메라 선택 콤보박스
-        camera_select_layout = QHBoxLayout()
-        camera_select_layout.addWidget(QLabel("카메라:"))
-        self.camera_combo = QComboBox()
-        self.camera_combo.addItems(self.camera_manager.available_cameras.keys())
-        camera_select_layout.addWidget(self.camera_combo)
-        camera_left_layout.addLayout(camera_select_layout)
-
-        # 해상도 선택 콤보박스
-        resolution_select_layout = QHBoxLayout()
-        resolution_select_layout.addWidget(QLabel("해상도:"))
-        self.resolution_combo = QComboBox()
-        self.resolution_combo.addItems(["640x480", "800x600", "1280x720", "1920x1080"])
-        resolution_select_layout.addWidget(self.resolution_combo)
-        camera_left_layout.addLayout(resolution_select_layout)
-
-        camera_layout.addLayout(camera_left_layout, 3)  # 비율 3
-
-        # 카메라 설정 오른쪽 부분 (버튼)
-        button_layout = QVBoxLayout()
-        self.connect_button = QPushButton("연결")
-        self.connect_button.clicked.connect(self.on_connect_camera)
-        button_layout.addWidget(self.connect_button)
-
-        self.disconnect_button = QPushButton("연결 해제")
-        self.disconnect_button.clicked.connect(self.on_disconnect_camera)
-        self.disconnect_button.setEnabled(False)
-        button_layout.addWidget(self.disconnect_button)
-
-        camera_layout.addLayout(button_layout, 1)  # 비율 1
-        camera_group.setLayout(camera_layout)
-
-        # 2. 객체 탐지 설정 (세로로 유동적)
-        detector_group = QGroupBox("객체 탐지 설정")
-        detector_layout = QVBoxLayout()
-        detector_layout.setContentsMargins(5, 5, 5, 5)
-
-        # 사람 탐지 활성화 체크박스
-        self.detection_checkbox = QCheckBox("사람 탐지 활성화")
-        self.detection_checkbox.stateChanged.connect(self.toggle_detection)
-        detector_layout.addWidget(self.detection_checkbox)
-
-        # 탐지 모드 설정
-        detection_mode_layout = QHBoxLayout()
-        detection_mode_layout.addWidget(QLabel("탐지 모드:"))
-        self.detection_mode_combo = QComboBox()
-        self.detection_mode_combo.addItems(["OpenCV-HOG", "YOLO"])
-        self.detection_mode_combo.setEnabled(False)
-        self.detection_mode_combo.currentTextChanged.connect(self.on_detection_mode_changed)
-        detection_mode_layout.addWidget(self.detection_mode_combo)
-        detector_layout.addLayout(detection_mode_layout)
-
-        # YOLO 설정
-        self.yolo_settings = QWidget()
-        yolo_layout = QVBoxLayout(self.yolo_settings)
-        yolo_layout.setContentsMargins(0, 0, 0, 0)
-
-        # YOLO 버전
-        yolo_version_layout = QHBoxLayout()
-        yolo_version_layout.addWidget(QLabel("YOLO 버전:"))
-        self.yolo_version_combo = QComboBox()
-        yolo_version_combo_versions = self.detector_manager.get_available_versions("YOLO")
-        self.yolo_version_combo.addItems(yolo_version_combo_versions)
-        self.yolo_version_combo.currentTextChanged.connect(self.on_yolo_version_changed)
-        yolo_version_layout.addWidget(self.yolo_version_combo)
-        yolo_layout.addLayout(yolo_version_layout)
-
-        # YOLO 모델
-        yolo_model_layout = QHBoxLayout()
-        yolo_model_layout.addWidget(QLabel("모델:"))
-        self.yolo_model_combo = QComboBox()
-        if yolo_version_combo_versions:
-            initial_models = self.detector_manager.get_available_models("YOLO", yolo_version_combo_versions[0])
-            self.yolo_model_combo.addItems(initial_models)
-            self.yolo_model_combo.setEnabled(len(initial_models) > 0)
-        else:
-            self.yolo_model_combo.addItem("사용 가능한 모델 없음")
-            self.yolo_model_combo.setEnabled(False)
-        yolo_model_layout.addWidget(self.yolo_model_combo)
-        yolo_layout.addLayout(yolo_model_layout)
-
-        # 신뢰도 임계값 슬라이더
-        confidence_layout = QHBoxLayout()
-        confidence_layout.addWidget(QLabel("신뢰도 임계값:"))
-        self.confidence_slider = QSlider(Qt.Horizontal)
-        self.confidence_slider.setRange(1, 99)
-        self.confidence_slider.setValue(40)  # 기본값 0.4
-        self.confidence_slider.valueChanged.connect(self.update_confidence_value)
-        confidence_layout.addWidget(self.confidence_slider)
-
-        self.confidence_value_label = QLabel("0.40")
-        confidence_layout.addWidget(self.confidence_value_label)
-        yolo_layout.addLayout(confidence_layout)
-
-        # YOLO 설정 초기 표시
-        self.yolo_settings.setVisible(False)
-        detector_layout.addWidget(self.yolo_settings)
-
-        # 적용 버튼
-        self.apply_button = QPushButton("설정 적용")
-        self.apply_button.clicked.connect(self.apply_detector_settings)
-        self.apply_button.setEnabled(False)
-        detector_layout.addWidget(self.apply_button)
-
-        detector_group.setLayout(detector_layout)
-
-        # 상단 패널에 추가
-        top_layout.addWidget(camera_group, 1)  # 비율 1
-        top_layout.addWidget(detector_group, 1)  # 비율 1
-        top_panel.setLayout(top_layout)
-
-        # 상단 패널을 메인 레이아웃에 추가
-        main_layout.addWidget(top_panel)
-
-        # 현재 설정 정보 패널
-        self.current_detector_info = QLabel("탐지기가 설정되지 않았습니다.")
-        self.current_detector_info.setAlignment(Qt.AlignCenter)
-        self.current_detector_info.setFrameStyle(QFrame.StyledPanel | QFrame.Sunken)
-        self.current_detector_info.setMinimumHeight(30)
-        self.current_detector_info.setMaximumHeight(40)
-        main_layout.addWidget(self.current_detector_info)
-
-        # 중앙 컨텐츠 영역 (비디오 + 결과)
-        content_panel = QSplitter(Qt.Horizontal)
-
-        # 비디오 프레임 (좌측)
-        self.video_frame = QLabel()
-        self.video_frame.setAlignment(Qt.AlignCenter)
-        self.video_frame.setFrameStyle(QFrame.StyledPanel)
-        self.video_frame.setMinimumSize(640, 480)
-        self.video_frame.setText("카메라가 연결되지 않았습니다.")
-
-        # 결과 패널 (우측)
-        right_panel = QWidget()
-        right_layout = QVBoxLayout(right_panel)
-        right_layout.setContentsMargins(0, 0, 0, 0)
-
-        # 탐지 결과
-        self.results_text = QLabel("탐지된 객체가 없습니다.")
-        self.results_text.setAlignment(Qt.AlignCenter)
-        self.results_text.setFrameStyle(QFrame.StyledPanel | QFrame.Sunken)
-        self.results_text.setMinimumHeight(150)
-        right_layout.addWidget(self.results_text)
-
-        # 하단 빈 공간 (확장 가능)
-        empty_space = QWidget()
-        empty_space.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        right_layout.addWidget(empty_space)
-
-        # 컨텐츠 패널에 추가
-        content_panel.addWidget(self.video_frame)
-        content_panel.addWidget(right_panel)
-        content_panel.setSizes([700, 300])  # 비디오:결과 비율
-
-        # 컨텐츠 패널을 메인 레이아웃에 추가
-        main_layout.addWidget(content_panel, 1)  # 스트레치 비율 1
-
-        # 상태바
-        self.statusBar = QStatusBar()
-        self.setStatusBar(self.statusBar)
-        self.statusBar.showMessage("시스템 준비")
 
     def connect_signals(self):
         """시그널 연결"""
@@ -231,8 +73,22 @@ class MainWindow(QMainWindow):
         # 탐지 매니저 시그널
         self.detector_manager.detection_result_signal.connect(self.update_detection_result)
 
+        # 객체 탐지 횟수 업데이트 시그널 연결 (있는 경우)
+        if hasattr(self.detector_manager, 'detection_counts_updated'):
+            self.detector_manager.detection_counts_updated.connect(self.update_detection_counts)
+
+        # 메뉴/툴바 액션 연결
+        self.actionExit.triggered.connect(self.close)
+        self.actionConnectCamera.triggered.connect(self.show_camera_settings)
+        self.actionDisconnectCamera.triggered.connect(self.on_disconnect_camera)
+        self.actionEnableDetection.triggered.connect(self.toggle_detection)
+        self.actionDetectionSettings.triggered.connect(self.show_detector_settings)
+        self.actionObjectSelection.triggered.connect(self.show_object_selection)
+        self.actionAbout.triggered.connect(self.show_about)
+
     def update_frame(self, frame):
-        """카메라 프레임 업데이트 - 해상도에 따라 텍스트 크기 조정"""
+        """카메라 프레임 업데이트"""
+
         try:
             if frame is None:
                 print("받은 프레임이 None입니다.")
@@ -243,9 +99,8 @@ class MainWindow(QMainWindow):
 
             # 객체 탐지 실행 (탐지 매니저에 프레임 전달)
             if self.detector_manager.is_active():
-                # 현재 해상도에 따라 텍스트 크기 조정
-                resolution = self.resolution_combo.currentText()
-                text_scale = self.get_text_scale_for_resolution(resolution)
+                # 텍스트 스케일 설정
+                text_scale = 1.0  # 기본값
 
                 # 텍스트 스케일을 탐지 함수에 전달
                 frame, _, _ = self.detector_manager.detect(frame, text_scale=text_scale)
@@ -262,35 +117,23 @@ class MainWindow(QMainWindow):
             pixmap = QPixmap.fromImage(qt_image)
 
             # 비디오 프레임 위젯의 실제 크기
-            frame_width = self.video_frame.width()
-            frame_height = self.video_frame.height()
+            frame_width = self.videoFrame.width()
+            frame_height = self.videoFrame.height()
 
             # 이미지 크기 조정 (비율 유지)
             scaled_pixmap = pixmap.scaled(frame_width, frame_height,
                                           Qt.KeepAspectRatio,
                                           Qt.SmoothTransformation)
 
-            self.video_frame.setPixmap(scaled_pixmap)
-            self.video_frame.setAlignment(Qt.AlignCenter)
+            self.videoFrame.setPixmap(scaled_pixmap)
+            self.videoFrame.setAlignment(Qt.AlignCenter)
         except Exception as e:
             print(f"프레임 업데이트 오류: {str(e)}")
             import traceback
             traceback.print_exc()
 
-    def get_text_scale_for_resolution(self, resolution):
-        """해상도에 따른 텍스트 스케일 반환"""
-        if resolution == "1920x1080":
-            return 1.5  # 큰 해상도에서는 더 큰 텍스트
-        elif resolution == "1280x720":
-            return 1.2
-        elif resolution == "800x600":
-            return 1.0
-        else:  # 640x480 또는 기타
-            return 0.8
-
     def update_fps(self, fps):
         """FPS 업데이트 처리"""
-        # FPS 정보 저장 (상태 표시줄에서 사용)
         self.current_fps = fps
 
     def update_system_status(self, status):
@@ -319,118 +162,226 @@ class MainWindow(QMainWindow):
                 if model:
                     status_text += f" ({model})"
 
-        self.statusBar.showMessage(status_text)
+        self.statusbar.showMessage(status_text)
 
     def update_detection_result(self, result_text):
         """객체 탐지 결과 업데이트"""
-        self.results_text.setText(result_text)
+        self.resultsTextLabel.setText(result_text)
 
-    def on_connect_camera(self):
-        """카메라 연결 버튼 클릭 처리"""
-        camera = self.camera_combo.currentText()
-        resolution = self.resolution_combo.currentText()
+    def update_detection_counts(self, detection_counts):
+        """객체별 탐지 횟수 업데이트"""
+        # 현재 속성으로 저장 (나중에 다이얼로그에 전달하기 위함)
+        self.current_detection_counts = detection_counts
 
+    def update_detection_counts_in_dialogs(self):
+        """열려 있는 다이얼로그의 탐지 횟수 업데이트"""
+        # 탐지 횟수가 없으면 건너뛰기
+        if not hasattr(self, 'current_detection_counts'):
+            return
+
+        # 모든 자식 다이얼로그 검사
+        for dialog in self.findChildren(QDialog):
+            if hasattr(dialog, 'update_detection_counts'):
+                dialog.update_detection_counts(self.current_detection_counts)
+
+    def show_camera_settings(self):
+        """카메라 설정 다이얼로그 표시"""
+        dialog = CameraSettingsDialog(self.camera_manager, self)
+
+        # 현재 연결된 카메라가 있으면 설정 값으로 초기화
+        if self.is_camera_connected:
+            current_camera = self.camera_manager.get_current_camera()
+            if current_camera:
+                index = dialog.cameraCombo.findText(current_camera)
+                if index >= 0:
+                    dialog.cameraCombo.setCurrentIndex(index)
+
+        result = dialog.exec_()
+        if result == QDialog.Accepted:
+            settings = dialog.get_camera_settings()
+            self.on_connect_camera(settings['camera'], settings['resolution'])
+
+    def show_detector_settings(self):
+        """탐지기 설정 다이얼로그 표시"""
+        # 카메라가 연결되어 있는지 확인
+        if not self.is_camera_connected:
+            QMessageBox.warning(self, "경고", "카메라가 연결되어 있지 않습니다. 일부 설정이 적용되지 않을 수 있습니다.")
+
+        # 탐지기 설정 다이얼로그 생성
+        dialog = DetectorSettingsDialog(self.detector_manager, self)
+
+        # 다이얼로그 실행
+        result = dialog.exec_()
+
+        # 사용자가 '적용' 버튼을 클릭한 경우
+        if result == QDialog.Accepted:
+            # 설정 가져오기
+            settings = dialog.get_detector_settings()
+
+            # 탐지기 설정 적용
+            detector_type = settings['detector_type']
+            version = settings['version']
+            model = settings['model']
+            params = settings['params']
+
+            # 객체 선택 목록이 있다면 파라미터에 추가
+            if hasattr(self, 'selected_objects') and self.selected_objects:
+                params['objects_to_detect'] = self.selected_objects
+
+            # 탐지기 설정 적용
+            success, message = self.detector_manager.set_detector(
+                detector_type, version, model, **params)
+
+            # 결과 메시지 표시
+            if success:
+                self.update_detector_info()
+                self.statusbar.showMessage(f"탐지기 설정 적용됨: {message}")
+
+                # 탐지 활성화 상태라면 바로 적용
+                if self.actionEnableDetection.isChecked():
+                    self.toggle_detection(True)
+            else:
+                self.statusbar.showMessage(f"탐지기 설정 실패: {message}")
+                QMessageBox.warning(self, "설정 실패", f"탐지기 설정을 적용하지 못했습니다: {message}")
+
+    def show_object_selection(self):
+        """객체 선택 다이얼로그 표시"""
+        # 현재 활성화된 탐지기가 YOLO인지 확인
+        if self.detector_manager.is_active():
+            detector_info = self.detector_manager.get_current_detector_info()
+            if detector_info.get("type") != "YOLO":
+                QMessageBox.information(self, "알림",
+                                        "객체 선택 기능은 YOLO 탐지기에서만 사용할 수 있습니다.\n"
+                                        "현재 탐지기: " + detector_info.get("type", "알 수 없음"))
+                return
+
+        # 객체 선택 다이얼로그 생성
+        dialog = ObjectSelectionDialog(self.detector_manager, self)
+
+        # 현재 업데이트된 탐지 횟수 전달
+        if hasattr(self.detector_manager, 'get_detection_counts'):
+            detection_counts = self.detector_manager.get_detection_counts()
+            if hasattr(dialog, 'update_detection_counts'):
+                dialog.update_detection_counts(detection_counts)
+
+        # 다이얼로그 실행
+        result = dialog.exec_()
+
+        # 사용자가 '적용' 버튼을 클릭한 경우
+        if result == QDialog.Accepted:
+            # 선택된 객체 목록 가져오기
+            self.selected_objects = dialog.get_selected_objects()
+
+            # 탐지기가 활성화되어 있다면 객체 선택 적용
+            if self.detector_manager.is_active() and self.actionEnableDetection.isChecked():
+                if hasattr(self.detector_manager, 'set_objects_to_detect'):
+                    success, message = self.detector_manager.set_objects_to_detect(self.selected_objects)
+                    if success:
+                        self.statusbar.showMessage(f"탐지 객체 설정이 적용되었습니다.")
+                    else:
+                        self.statusbar.showMessage(f"탐지 객체 설정 적용 실패: {message}")
+
+    def show_about(self):
+        """프로그램 정보 다이얼로그 표시"""
+        about_text = "객체 탐지 시스템\n버전 1.0\n\n객체 탐지 및 인식을 위한 프로그램입니다."
+        QMessageBox.information(self, "프로그램 정보", about_text)
+
+    def on_connect_camera(self, camera, resolution):
+        """카메라 연결 처리"""
         # 연결 시도
         success, message = self.camera_manager.connect_camera(camera, resolution)
 
         if success:
-            self.connect_button.setEnabled(False)
-            self.disconnect_button.setEnabled(True)
+            self.is_camera_connected = True
+            self.actionConnectCamera.setEnabled(False)
+            self.actionDisconnectCamera.setEnabled(True)
+
             # 탐지기 컨트롤 활성화
-            self.enable_detection_controls(True)
-            self.statusBar.showMessage(f"카메라 '{camera}' 연결됨, 해상도: {resolution}")
+            self.actionEnableDetection.setEnabled(True)
+            self.actionDetectionSettings.setEnabled(True)
+            self.actionObjectSelection.setEnabled(True)
+
+            # 이전에 탐지가 활성화되어 있었다면 설정 복원
+            if hasattr(self, 'previous_detection_active') and self.previous_detection_active:
+                self.actionEnableDetection.setChecked(True)
+                self.toggle_detection(True)
+
+            self.statusbar.showMessage(f"카메라 '{camera}' 연결됨, 해상도: {resolution}")
         else:
-            self.statusBar.showMessage(f"카메라 연결 실패: {message}")
+            self.statusbar.showMessage(f"카메라 연결 실패: {message}")
 
     def on_disconnect_camera(self):
-        """카메라 연결 해제 버튼 클릭 처리"""
+        """카메라 연결 해제 처리"""
+        # 현재 탐지 상태 저장
+        self.previous_detection_active = self.actionEnableDetection.isChecked()
+
         self.camera_manager.disconnect_camera()
-        self.connect_button.setEnabled(True)
-        self.disconnect_button.setEnabled(False)
-        self.video_frame.clear()
-        self.video_frame.setText("카메라가 연결되지 않았습니다.")
-        self.results_text.setText("탐지된 객체가 없습니다.")
+        self.is_camera_connected = False
+        self.actionConnectCamera.setEnabled(True)
+        self.actionDisconnectCamera.setEnabled(False)
 
-        # 탐지기 비활성화
+        self.videoFrame.clear()
+        self.videoFrame.setText("카메라가 연결되지 않았습니다.")
+        self.resultsTextLabel.setText("탐지된 객체가 없습니다.")
+
+        # 탐지기 비활성화 - 설정은 유지하되 컨트롤만 비활성화
         self.detector_manager.set_detector(None)
-        self.detection_checkbox.setChecked(False)
-        self.enable_detection_controls(False)
-        self.statusBar.showMessage("카메라 연결 해제됨")
+        self.actionEnableDetection.setChecked(False)
+        self.actionEnableDetection.setEnabled(False)
+        self.actionDetectionSettings.setEnabled(False)
+        self.actionObjectSelection.setEnabled(False)
 
-    def on_detection_mode_changed(self, mode):
-        """탐지 모드 변경 시 처리"""
-        # YOLO 설정 표시 여부
-        self.yolo_settings.setVisible(mode == "YOLO")
-
-        # YOLO 버전 목록 업데이트
-        if mode == "YOLO":
-            self.yolo_version_combo.clear()
-            versions = self.detector_manager.get_available_versions("YOLO")
-            self.yolo_version_combo.addItems(versions)
-
-            # 첫 번째 버전 선택 및 모델 업데이트
-            if versions:
-                self.on_yolo_version_changed(versions[0])
-
-    def on_yolo_version_changed(self, version):
-        """YOLO 버전 변경 시 모델 목록 업데이트"""
-        self.yolo_model_combo.clear()
-        models = self.detector_manager.get_available_models("YOLO", version)
-
-        if models:
-            self.yolo_model_combo.addItems(models)
-            self.yolo_model_combo.setEnabled(True)
-        else:
-            self.yolo_model_combo.addItem("사용 가능한 모델 없음")
-            self.yolo_model_combo.setEnabled(False)
-
-    def update_confidence_value(self, value):
-        """신뢰도 슬라이더 값 변경 시 레이블 업데이트"""
-        confidence = value / 100.0
-        self.confidence_value_label.setText(f"{confidence:.2f}")
+        # 상태 업데이트
+        self.update_detector_info()
+        self.statusbar.showMessage("카메라 연결 해제됨")
 
     def toggle_detection(self, state):
         """객체 탐지 활성화/비활성화"""
-        enabled = (state == Qt.Checked)
-
-        # UI 요소 활성화/비활성화
-        self.detection_mode_combo.setEnabled(enabled)
-        self.apply_button.setEnabled(enabled)
-
-        # YOLO 설정 표시 여부
-        if enabled and self.detection_mode_combo.currentText() == "YOLO":
-            self.yolo_settings.setVisible(True)
+        if isinstance(state, bool):
+            enabled = state
         else:
-            self.yolo_settings.setVisible(False)
+            enabled = self.actionEnableDetection.isChecked()
 
-        # 탐지 비활성화 시 탐지기 해제
-        if not enabled:
+        # 활성화 상태에 따라 설정 적용
+        if enabled:
+            # 탐지기 설정 적용
+            self.apply_detector_settings()
+        else:
+            # 탐지기 비활성화
             self.detector_manager.set_detector(None)
             self.update_detector_info()
-            self.results_text.setText("탐지된 객체가 없습니다.")
+            self.resultsTextLabel.setText("탐지된 객체가 없습니다.")
 
     def apply_detector_settings(self):
         """탐지기 설정 적용"""
-        # 매개변수 수집
-        detector_type = self.detection_mode_combo.currentText()
-        params = {}
+        # 기본값으로 YOLO를 사용
+        detector_type = "YOLO"
+        version = "v4"  # 기본 버전
+        model = "YOLOv4-tiny"  # 기본 모델
+        conf_threshold = 0.4  # 기본 신뢰도 임계값
 
+        # 사용자가 이전에 설정한 값이 있으면 사용
+        if hasattr(self, 'saved_detection_mode'):
+            detector_type = self.saved_detection_mode
+
+        if detector_type == "YOLO" and hasattr(self, 'saved_yolo_version'):
+            version = self.saved_yolo_version
+
+        if hasattr(self, 'saved_yolo_model'):
+            model = self.saved_yolo_model
+
+        if hasattr(self, 'saved_confidence'):
+            conf_threshold = self.saved_confidence / 100.0
+
+        # 매개변수 설정
+        params = {
+            'conf_threshold': conf_threshold,
+            'nms_threshold': 0.4,  # 기본값
+            'objects_to_detect': self.selected_objects  # 선택된 객체 목록 전달
+        }
+
+        # 탐지기 설정
         if detector_type == "YOLO":
-            # YOLO 설정
-            version = self.yolo_version_combo.currentText()
-            model = self.yolo_model_combo.currentText()
-
-            # 사용 가능한 모델이 없는 경우 처리
-            if model == "사용 가능한 모델 없음":
-                self.statusBar.showMessage(f"사용 가능한 모델이 없습니다.")
-                return
-
-            conf_threshold = self.confidence_slider.value() / 100.0
-
-            params['conf_threshold'] = conf_threshold
-            params['nms_threshold'] = 0.4  # 기본값
-
-            # 탐지기 설정
             success, message = self.detector_manager.set_detector(
                 detector_type, version, model, **params)
         else:
@@ -440,34 +391,18 @@ class MainWindow(QMainWindow):
         # 결과 표시
         if success:
             self.update_detector_info()
-            self.statusBar.showMessage(f"탐지기 설정 적용됨: {message}")
+            self.statusbar.showMessage(f"탐지기 설정 적용됨: {message}")
         else:
-            self.statusBar.showMessage(f"탐지기 설정 실패: {message}")
-
-    def enable_detection_controls(self, enabled):
-        """탐지 컨트롤 활성화/비활성화"""
-        self.detection_checkbox.setEnabled(enabled)
-
-        # 체크박스가 체크되어 있지 않으면 다른 컨트롤은 비활성화
-        should_enable = enabled and self.detection_checkbox.isChecked()
-        self.detection_mode_combo.setEnabled(should_enable)
-        self.apply_button.setEnabled(should_enable)
-        self.yolo_settings.setEnabled(should_enable)
-
-    def resizeEvent(self, event):
-        """창 크기 조정 시 이벤트 처리"""
-        super().resizeEvent(event)
-
-        # 이전 프레임이 있으면 크기에 맞게 다시 그리기
-        if hasattr(self, 'last_frame') and self.last_frame is not None:
-            self.update_frame(self.last_frame)
+            self.statusbar.showMessage(f"탐지기 설정 실패: {message}")
+            # 실패 시 체크박스 해제
+            self.actionEnableDetection.setChecked(False)
 
     def update_detector_info(self):
         """현재 설정된 탐지기 정보 업데이트"""
         info = self.detector_manager.get_current_detector_info()
 
         if info.get("status") == "미설정":
-            self.current_detector_info.setText("탐지기가 설정되지 않았습니다.")
+            self.detectorInfoLabel.setText("탐지기가 설정되지 않았습니다.")
             return
 
         # 정보 텍스트 구성
@@ -476,11 +411,11 @@ class MainWindow(QMainWindow):
         model = info.get("model", "")
         params = info.get("params", {})
 
-        text = f"현재 탐지 모드: {detector_type}"
+        text = f"객체 탐지 모드: {detector_type}"
         if version:
             text += f" {version}"
         if model:
-            text += f" - {model}"
+            text += f"\n{model}"
 
         # 매개변수 표시
         if params:
@@ -488,4 +423,12 @@ class MainWindow(QMainWindow):
             if conf:
                 text += f" (신뢰도 임계값: {conf:.2f})"
 
-        self.current_detector_info.setText(text)
+        self.detectorInfoLabel.setText(text)
+
+    def resizeEvent(self, event):
+        """창 크기 변경 시 이벤트 처리"""
+        super().resizeEvent(event)
+
+        # 이전 프레임이 있으면 크기에 맞게 다시 그리기
+        if hasattr(self, 'last_frame') and self.last_frame is not None:
+            self.update_frame(self.last_frame)
