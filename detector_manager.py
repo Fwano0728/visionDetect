@@ -205,7 +205,8 @@ class DetectorManager(QObject):
         """탐지기 활성화 상태 확인"""
         return self.detector_type is not None
 
-    def detect(self, frame, text_scale=1.0):
+    # detector_manager.py의 detect 메서드 수정
+    def detect(self, frame, text_scale=1.0, colors=None, selected_objects=None):
         """객체 탐지 수행"""
         if not self.detector_type:
             return frame, [], "탐지기가 설정되지 않았습니다."
@@ -214,44 +215,54 @@ class DetectorManager(QObject):
             detect_func = self.detectors[self.detector_type]["detect_func"]
             start_time = time.time()
 
-            # inspect 모듈 사용 대신 직접 text_scale 전달
-            try:
-                result_frame, detections = detect_func(frame, text_scale)
-            except TypeError:
-                # text_scale 매개변수가 없는 경우
-                result_frame, detections = detect_func(frame)
+            # 색상 정보 설정 (colors 매개변수가 전달되지 않은 경우 기본값 사용)
+            if colors is None:
+                colors = {
+                    "person": (0, 255, 0),  # 사람: 초록색 (BGR)
+                    "default": (0, 0, 255)  # 기타 객체: 빨간색 (BGR)
+                }
 
-            # text_scale 매개변수를 탐지 함수에 전달
-            #if 'text_scale' in inspect.signature(detect_func).parameters:
-                #result_frame, detections = detect_func(frame, text_scale)
-            #else:
-                #result_frame, detections = detect_func(frame)
+            # 선택된 객체 정보 설정 (전달되지 않은 경우 기존 매개변수 사용)
+            if selected_objects is None:
+                selected_objects = self.detector_params.get('objects_to_detect', {})
+
+            # 기존 매개변수 업데이트 (선택적으로)
+            update_params = False
+            if selected_objects:
+                self.detector_params['objects_to_detect'] = selected_objects
+                update_params = True
+
+            # 여기서 현재 객체 서브클래스가 해당 매개변수들을 지원하는지 확인하고 적절하게 호출
+            try:
+                # colors와 selected_objects를 모두 지원하는지 확인
+                if 'selected_objects' in inspect.signature(detect_func).parameters:
+                    # 두 매개변수 모두 지원
+                    result_frame, detections = detect_func(
+                        frame, text_scale=text_scale,
+                        colors=colors, selected_objects=selected_objects
+                    )
+                else:
+                    # colors만 지원하는지 확인
+                    try:
+                        result_frame, detections = detect_func(
+                            frame, text_scale=text_scale, colors=colors
+                        )
+                    except TypeError:
+                        # 기본 호출 시도
+                        result_frame, detections = detect_func(frame)
+            except Exception as e:
+                print(f"탐지 함수 호출 오류: {str(e)}")
+                # 기본 처리 - 원본 프레임 반환
+                result_frame = frame
+                detections = []
 
             detection_time = time.time() - start_time
 
-            # 탐지 횟수 업데이트
-            self.update_detection_counts(detections)
-
             # 결과 텍스트 생성
-            class_counts = {}
-            for d in detections:
-                class_name = d.get("class_name", "").lower()
-                class_counts[class_name] = class_counts.get(class_name, 0) + 1
-
-            result_text = "탐지된 객체:\n"
-
-            # 사람은 별도로 처리하여 상단에 표시
-            if "person" in class_counts:
-                person_count = class_counts.pop("person")
-                result_text += f"- 사람: {person_count}명\n"
-
-            # 나머지 클래스들
-            for class_name, count in sorted(class_counts.items()):
-                result_text += f"- {class_name}: {count}개\n"
-
-            # 탐지된 객체가 없는 경우
-            if not class_counts and "person" not in class_counts:
-                result_text = "탐지된 객체가 없습니다."
+            person_count = sum(1 for d in detections if d.get("class_name", "").lower() == "person")
+            result_text = f"탐지된 사람: {person_count}명"
+            if len(detections) > person_count:
+                result_text += f"\n기타 객체: {len(detections) - person_count}개"
 
             result_text += f"\n처리 시간: {detection_time:.3f}초"
             self.detection_result_signal.emit(result_text)
@@ -391,38 +402,47 @@ class DetectorManager(QObject):
             traceback.print_exc()
             return False, f"YOLO 모델 로드 실패: {str(e)}"
 
-    def _detect_yolo(self, frame, text_scale=1.0):
+    def _detect_yolo(self, frame, text_scale=1.0, colors=None):
         """YOLO를 사용한 객체 탐지"""
-        if self.detector_version == "v4" and hasattr(self, 'yolo_net'):
-            return self._detect_yolov4(frame, text_scale)
-        elif self.detector_version == "v8" and hasattr(self, 'yolo8_model'):
-            return self._detect_yolov8(frame, text_scale)
-        else:
-            print(f"지원되지 않는 YOLO 버전: {self.detector_version}")
-            return frame, []
+        if self.detector_version == "v8" and hasattr(self, 'yolo8_model'):
+            # YOLOv8 분기
+            if colors is not None:
+                return self._detect_yolov8(frame, text_scale, colors)
+            else:
+                return self._detect_yolov8(frame, text_scale)
+        elif hasattr(self, 'yolo_net'):
+            # YOLOv4 분기
+            if colors is not None:
+                return self._detect_yolov4(frame, text_scale, colors)
+            else:
+                return self._detect_yolov4(frame, text_scale)
 
-    def _detect_yolov4(self, frame, text_scale=1.0):
+        return frame, []
+
+    def _detect_yolov4(self, frame, text_scale=1.0, colors=None, selected_objects=None):
         """YOLOv4를 사용한 객체 탐지"""
-
         # 매개변수
         conf_threshold = self.detector_params.get('conf_threshold', 0.4)
         nms_threshold = self.detector_params.get('nms_threshold', 0.4)
-        objects_to_detect = self.detector_params.get('objects_to_detect', {})
-        input_size = self.detector_params.get('input_size', '416x416')
 
-        # 입력 크기 파싱
-        if 'x' in input_size:
-            width, height = map(int, input_size.split('x'))
-        else:
-            width = height = 416  # 기본값
+        # 객체 선택 목록 가져오기
+        if selected_objects is None:
+            selected_objects = self.detector_params.get('objects_to_detect', {})
+
+        # 기본 색상 설정
+        if colors is None:
+            colors = {
+                "person": (0, 255, 0),  # 사람: 초록색 (BGR)
+                "default": (0, 0, 255)  # 기타 객체: 빨간색 (BGR)
+            }
 
         # 처리 속도를 위해 프레임 크기를 더 작게 감소
         scale_factor = 0.3  # 이미지 크기를 30%로 줄임
         small_frame = cv2.resize(frame, (0, 0), fx=scale_factor, fy=scale_factor)
-        orig_height, orig_width = small_frame.shape[:2]
+        height, width = small_frame.shape[:2]
 
         # 이미지를 YOLO 입력 형식으로 변환
-        blob = cv2.dnn.blobFromImage(small_frame, 1 / 255.0, (width, height), swapRB=True, crop=False)
+        blob = cv2.dnn.blobFromImage(small_frame, 1 / 255.0, (320, 320), swapRB=True, crop=False)
         self.yolo_net.setInput(blob)
 
         # 예측 실행
@@ -442,17 +462,13 @@ class DetectorManager(QObject):
                 # 클래스 이름 가져오기
                 class_name = self.yolo_classes[class_id] if class_id < len(self.yolo_classes) else f"Class {class_id}"
 
-                # 객체 선택 필터링 - 선택되지 않은 객체는 건너뛰기
-                if objects_to_detect and class_name in objects_to_detect and not objects_to_detect.get(class_name,
-                                                                                                       True):
-                    continue  # 이 객체는 탐지하지 않도록 설정됨
-
-                if confidence > conf_threshold:
+                # 신뢰도 임계값 이상이고 선택된 객체만 처리
+                if confidence > conf_threshold and (not selected_objects or selected_objects.get(class_name, False)):
                     # 원본 이미지 크기에 맞게 좌표 계산
-                    center_x = int((detection[0] * orig_width) / scale_factor)
-                    center_y = int((detection[1] * orig_height) / scale_factor)
-                    w = int((detection[2] * orig_width) / scale_factor)
-                    h = int((detection[3] * orig_height) / scale_factor)
+                    center_x = int((detection[0] * width) / scale_factor)
+                    center_y = int((detection[1] * height) / scale_factor)
+                    w = int((detection[2] * width) / scale_factor)
+                    h = int((detection[3] * height) / scale_factor)
 
                     # 바운딩 박스 좌표
                     x = int(center_x - w / 2)
@@ -488,12 +504,27 @@ class DetectorManager(QObject):
                 # 클래스 이름
                 class_name = self.yolo_classes[class_id] if class_id < len(self.yolo_classes) else f"Class {class_id}"
 
-                # 박스 그리기
-                color = (0, 255, 0) if class_name.lower() == "person" else (255, 0, 0)
-                cv2.rectangle(result_frame, (x, y), (x + w, y + h), color, 2)
-                text = f'{class_name} {confidence:.2f}'
-                cv2.putText(result_frame, text,
-                            (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5 * text_scale, color, 2)
+                # 박스 그리기 - 객체 유형에 맞는 색상 선택
+                if class_name in colors:
+                    color = colors[class_name]
+                else:
+                    color = colors.get("default", (0, 255, 0))
+
+                # 박스 그리기 - 경계선 굵기 증가
+                line_thickness = 2
+                cv2.rectangle(result_frame, (x, y), (x + w, y + h), color, line_thickness)
+
+                # 텍스트 배경 그리기 (가독성 개선)
+                label = f'{class_name} {confidence:.2f}'
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                font_scale = text_scale * 0.5  # 텍스트 크기 조정
+                t_size = cv2.getTextSize(label, font, font_scale, 1)[0]
+
+                # 텍스트 배경 박스
+                cv2.rectangle(result_frame, (x, y - t_size[1] - 4), (x + t_size[0], y), color, -1)
+
+                # 텍스트 그리기 (흰색)
+                cv2.putText(result_frame, label, (x, y - 5), font, font_scale, (255, 255, 255), 1, cv2.LINE_AA)
 
                 # 탐지 정보 저장
                 detections.append({
@@ -505,48 +536,70 @@ class DetectorManager(QObject):
 
         return result_frame, detections
 
-    def _detect_yolov8(self, frame, text_scale=1.0):
+    def _detect_yolov8(self, frame, text_scale=1.0, colors=None):
         """YOLOv8을 사용한 객체 탐지"""
         # 매개변수
         conf_threshold = self.detector_params.get('conf_threshold', 0.4)
+
+        # 객체 선택 목록 가져오기
         objects_to_detect = self.detector_params.get('objects_to_detect', {})
+
+        # 기본 색상 설정
+        if colors is None:
+            colors = {
+                "person": (0, 255, 0),  # 사람: 초록색
+                "default": (0, 0, 255)  # 기타 객체: 빨간색
+            }
 
         # 모델 실행
         results = self.yolo8_model(frame, conf=conf_threshold)
         result = results[0]  # 첫 번째 결과
 
-        # 결과 이미지
-        filtered_detections = []
-
-        # 원본 이미지 복사
-        result_frame = frame.copy()
-
         # 탐지 정보 가져오기
         detections = []
+        result_frame = frame.copy()
+
         for box in result.boxes:
             x1, y1, x2, y2 = box.xyxy[0].tolist()
             confidence = box.conf[0].item()
             class_id = int(box.cls[0].item())
             class_name = result.names[class_id]
 
-            # 객체 선택 필터링 - 선택되지 않은 객체는 건너뛰기
-            if objects_to_detect and class_name in objects_to_detect and not objects_to_detect.get(class_name, True):
-                continue  # 이 객체는 탐지하지 않도록 설정됨
+            # 선택된 객체만 처리
+            if not objects_to_detect or objects_to_detect.get(class_name, False):
+                # 좌표 정수로 변환
+                x, y = int(x1), int(y1)
+                w, h = int(x2 - x1), int(y2 - y1)
 
-            # 박스 그리기
-            x, y, w, h = int(x1), int(y1), int(x2 - x1), int(y2 - y1)
-            color = (0, 255, 0) if class_name.lower() == "person" else (255, 0, 0)
-            cv2.rectangle(result_frame, (x, y), (x + w, y + h), color, 2)
-            text = f'{class_name} {confidence:.2f}'
-            cv2.putText(result_frame, text,
-                        (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5 * text_scale, color, 2)
+                # 객체 유형에 맞는 색상 선택
+                if class_name in colors:
+                    color = colors[class_name]
+                else:
+                    color = colors.get("default", (0, 255, 0))
 
-            detections.append({
-                "class_id": class_id,
-                "class_name": class_name,
-                "confidence": confidence,
-                "box": [x, y, w, h]
-            })
+                # 박스 그리기 - 경계선 굵기 증가
+                line_thickness = 2
+                cv2.rectangle(result_frame, (x, y), (x + w, y + h), color, line_thickness)
+
+                # 텍스트 배경 그리기 (가독성 개선)
+                label = f'{class_name} {confidence:.2f}'
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                font_scale = text_scale * 0.5  # 텍스트 크기 조정
+                t_size = cv2.getTextSize(label, font, font_scale, 1)[0]
+
+                # 텍스트 배경 박스
+                cv2.rectangle(result_frame, (x, y - t_size[1] - 4), (x + t_size[0], y), color, -1)
+
+                # 텍스트 그리기 (흰색)
+                cv2.putText(result_frame, label, (x, y - 5), font, font_scale, (255, 255, 255), 1, cv2.LINE_AA)
+
+                # 탐지 정보 저장
+                detections.append({
+                    "class_id": class_id,
+                    "class_name": class_name,
+                    "confidence": confidence,
+                    "box": [x, y, w, h]
+                })
 
         return result_frame, detections
 

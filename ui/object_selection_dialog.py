@@ -11,6 +11,21 @@ import json  # json 모듈 추가
 class ObjectSelectionDialog(QDialog):
     def __init__(self, detector_manager, parent=None):
         super().__init__(parent)
+
+        # 필요한 속성 초기화
+        self.detector_manager = detector_manager
+        self.parent = parent
+
+        if hasattr(parent, 'camera_manager'):
+            self.camera_manager = parent.camera_manager
+        else:
+            self.camera_manager = None
+
+        # update_frame 메서드가 호출되지 않도록 임시 구현
+        self.update_frame = lambda *args, **kwargs: None
+
+
+
         # UI 파일 로드
         current_dir = os.path.dirname(os.path.abspath(__file__))
         ui_file = os.path.join(current_dir, 'ui_files', 'object_selection.ui')
