@@ -148,18 +148,16 @@ class MainWindow(QMainWindow):
         if not current_detections:
             return
 
-        # Update each object's current detection count label
-        for class_name, widgets in self.object_checkboxes.items():
-            if 'count_label' in widgets:
-                count_label = widgets['count_label']
-                count = current_detections.get(class_name, 0)
-                count_label.setText(f"탐지: {count}개")
+        # 다이얼로그 목록을 순회하며 현재 탐지 수 업데이트
+        for dialog in list(self.open_dialogs):
+            if dialog and hasattr(dialog, 'update_current_detections'):
+                try:
+                    dialog.update_current_detections(current_detections)
+                except Exception as e:
+                    print(f"다이얼로그 업데이트 오류: {str(e)}")
+                    if dialog in self.open_dialogs:
+                        self.open_dialogs.remove(dialog)
 
-                # Highlight labels for currently detected objects
-                if count > 0:
-                    count_label.setStyleSheet("color: #007BFF; font-weight: bold;")
-                else:
-                    count_label.setStyleSheet("")
 
     def update_frame(self, frame):
         """카메라 프레임 업데이트"""
