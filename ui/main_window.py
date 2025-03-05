@@ -115,9 +115,16 @@ class MainWindow(QMainWindow):
         # 탐지 매니저 시그널
         self.detector_manager.detection_result_signal.connect(self.update_detection_result)
 
-        # 객체 탐지 횟수 업데이트 시그널 연결 (있는 경우)
+        # 객체 탐지 횟수 업데이트 시그널 연결
         if hasattr(self.detector_manager, 'detection_counts_updated'):
             self.detector_manager.detection_counts_updated.connect(self.update_detection_counts)
+
+        # 현재 탐지 수 업데이트 시그널 연결
+        if hasattr(self.detector_manager, 'current_detection_updated'):
+            try:
+                self.detector_manager.current_detection_updated.connect(self.update_current_detections)
+            except Exception as e:
+                print(f"현재 탐지 업데이트 시그널 연결 실패: {str(e)}")
 
         # 메뉴/툴바 액션 연결
         self.actionExit.triggered.connect(self.close)
@@ -127,6 +134,32 @@ class MainWindow(QMainWindow):
         self.actionDetectionSettings.triggered.connect(self.show_detector_settings)
         self.actionObjectSelection.triggered.connect(self.show_object_selection)
         self.actionAbout.triggered.connect(self.show_about)
+
+        # 카메라 연결 버튼 시그널 추가
+        if hasattr(self, 'connect_button'):
+            self.connect_button.clicked.connect(self.on_connect_camera)
+
+        # 카메라 연결 해제 버튼 시그널 추가
+        if hasattr(self, 'disconnect_button'):
+            self.disconnect_button.clicked.connect(self.on_disconnect_camera)
+
+    def update_current_detections(self, current_detections):
+        """Update UI with currently detected object counts"""
+        if not current_detections:
+            return
+
+        # Update each object's current detection count label
+        for class_name, widgets in self.object_checkboxes.items():
+            if 'count_label' in widgets:
+                count_label = widgets['count_label']
+                count = current_detections.get(class_name, 0)
+                count_label.setText(f"탐지: {count}개")
+
+                # Highlight labels for currently detected objects
+                if count > 0:
+                    count_label.setStyleSheet("color: #007BFF; font-weight: bold;")
+                else:
+                    count_label.setStyleSheet("")
 
     def update_frame(self, frame):
         """카메라 프레임 업데이트"""
@@ -352,81 +385,80 @@ class MainWindow(QMainWindow):
                                             "현재 탐지기: " + detector_info.get("type", "알 수 없음"))
                     return
 
-            # 객체 선택 다이얼로그 생성 - 안전하게 생성
-            from ui.object_selection_dialog import ObjectSelectionDialog
-            dialog = None
-
+            # 객체 선택 다이얼로그 생성 (모달리스로 설정)
             try:
+                from ui.object_selection_dialog import ObjectSelectionDialog
                 dialog = ObjectSelectionDialog(self.detector_manager, self)
-                # update_frame 속성 확인 및 처리
-                if hasattr(dialog, 'update_frame'):
-                    pass
-                # camera_manager 속성 추가
-                if hasattr(self, 'camera_manager') and not hasattr(dialog, 'camera_manager'):
-                    dialog.camera_manager = self.camera_manager
+                dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+                dialog.show()  # exec_() 대신 show() 사용하여 모달리스로 표시
+
+                # 다이얼로그 참조 저장
+                self.open_dialogs.append(dialog)
+
+                # 현재 탐지 수 업데이트 연결
+                if hasattr(self.detector_manager, 'current_detection_updated'):
+                    self.detector_manager.current_detection_updated.connect(dialog.update_current_detections)
+
+                # 다이얼로그 완료 시 처리를 위한 시그널 연결
+                dialog.accepted.connect(lambda: self.on_object_selection_accepted(dialog))
+                dialog.rejected.connect(lambda: self.on_object_selection_rejected(dialog))
+
             except Exception as e:
                 QMessageBox.critical(self, "오류", f"객체 선택 다이얼로그 생성 오류: {str(e)}")
                 import traceback
                 traceback.print_exc()
                 return
 
-            if dialog is None:
-                QMessageBox.critical(self, "오류", "객체 선택 다이얼로그를 생성할 수 없습니다.")
-                return
-
-            self.open_dialogs.append(dialog)
-
-            # 현재 업데이트된 탐지 횟수 전달
-            if hasattr(self.detector_manager, 'get_detection_counts'):
-                try:
-                    detection_counts = self.detector_manager.get_detection_counts()
-                    if hasattr(dialog, 'update_detection_counts'):
-                        dialog.update_detection_counts(detection_counts)
-                except:
-                    pass
-
-            # 다이얼로그 실행
-            result = dialog.exec_()
-            if dialog in self.open_dialogs:
-                self.open_dialogs.remove(dialog)
-
-            # 사용자가 '적용' 버튼을 클릭한 경우
-            if result == QDialog.Accepted:
-                try:
-                    # 선택된 객체 목록 가져오기
-                    if hasattr(dialog, 'get_selected_objects'):
-                        self.selected_objects = dialog.get_selected_objects()
-
-                        # 탐지기가 활성화되어 있다면 객체 선택 적용
-                        if self.detector_manager.is_active() and self.actionEnableDetection.isChecked():
-                            # 현재 탐지기 설정을 가져와서 객체 선택 정보만 업데이트
-                            detector_info = self.detector_manager.get_current_detector_info()
-                            if detector_info.get("status") == "설정됨":
-                                detector_type = detector_info.get("type", "")
-                                version = detector_info.get("version", "")
-                                model = detector_info.get("model", "")
-
-                                # 기존 매개변수 유지
-                                existing_params = detector_info.get("params", {}).copy()
-
-                                # 객체 선택 정보 업데이트
-                                existing_params['objects_to_detect'] = self.selected_objects
-
-                                # 탐지기 재설정
-                                success, message = self.detector_manager.set_detector(
-                                    detector_type, version, model, **existing_params)
-
-                                if success:
-                                    self.statusbar.showMessage("객체 선택 설정이 적용되었습니다.")
-                                else:
-                                    self.statusbar.showMessage(f"객체 선택 설정 적용 실패: {message}")
-                except Exception as e:
-                    QMessageBox.warning(self, "경고", f"객체 선택 적용 중 오류 발생: {str(e)}")
-
         except Exception as e:
             QMessageBox.critical(self, "오류", f"객체 선택 다이얼로그에서 오류가 발생했습니다: {str(e)}")
             import traceback
             traceback.print_exc()
+
+    def on_object_selection_accepted(self, dialog):
+        """객체 선택 다이얼로그 수락 시 처리"""
+        try:
+            # 선택된 객체 목록 가져오기
+            self.selected_objects = dialog.get_selected_objects()
+
+            # 카테고리별 색상 가져오기
+            category_colors = dialog.get_category_colors()
+
+            # 탐지기가 활성화되어 있다면 객체 선택 적용
+            if self.detector_manager.is_active() and self.actionEnableDetection.isChecked():
+                # 현재 탐지기 설정을 가져와서 객체 선택 정보만 업데이트
+                detector_info = self.detector_manager.get_current_detector_info()
+                if detector_info.get("status") == "설정됨":
+                    detector_type = detector_info.get("type", "")
+                    version = detector_info.get("version", "")
+                    model = detector_info.get("model", "")
+
+                    # 기존 매개변수 유지
+                    existing_params = detector_info.get("params", {}).copy()
+
+                    # 객체 선택 정보 및 색상 업데이트
+                    existing_params['objects_to_detect'] = self.selected_objects
+                    existing_params['category_colors'] = category_colors
+
+                    # 탐지기 재설정
+                    success, message = self.detector_manager.set_detector(
+                        detector_type, version, model, **existing_params)
+
+                    if success:
+                        self.statusbar.showMessage("객체 선택 설정이 적용되었습니다.")
+                    else:
+                        self.statusbar.showMessage(f"객체 선택 설정 적용 실패: {message}")
+        except Exception as e:
+            print(f"객체 선택 적용 오류: {str(e)}")
+
+        # 다이얼로그 참조 제거
+        if dialog in self.open_dialogs:
+            self.open_dialogs.remove(dialog)
+
+    def on_object_selection_rejected(self, dialog):
+        """객체 선택 다이얼로그 취소 시 처리"""
+        # 다이얼로그 참조 제거
+        if dialog in self.open_dialogs:
+            self.open_dialogs.remove(dialog)
 
     def update_color_map(self):
         """선택된 객체에 따라 색상 맵 업데이트"""

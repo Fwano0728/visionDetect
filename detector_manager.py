@@ -8,6 +8,18 @@ import time
 import inspect
 from PyQt5.QtCore import QObject, pyqtSignal
 
+# 카테고리별 색상 정의 (BGR 형식)
+CATEGORY_COLORS = {
+    "사람": (0, 255, 0),  # 초록색
+    "탈것": (0, 0, 255),  # 빨간색
+    "동물": (0, 165, 255),  # 주황색
+    "생활용품": (128, 0, 128),  # 보라색
+    "음식": (255, 0, 255),  # 분홍색
+    "가구": (0, 128, 128),  # 청록색
+    "전자기기": (255, 255, 0),  # 노란색
+    "기타": (128, 128, 128)  # 회색
+}
+
 
 class DetectorManager(QObject):
     """객체 탐지 알고리즘 관리 클래스"""
@@ -15,9 +27,33 @@ class DetectorManager(QObject):
     # 시그널 정의
     detection_result_signal = pyqtSignal(str)
     detection_counts_updated = pyqtSignal(dict)  # 객체별 탐지 횟수 시그널
+    current_detection_updated = pyqtSignal(dict)
 
     def __init__(self):
         super().__init__()
+
+        # 카테고리 정의
+        self.categories = {
+            "사람": ["person"],
+            "탈것": ["bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat"],
+            "동물": ["bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe"],
+            "생활용품": ["backpack", "umbrella", "handbag", "tie", "suitcase", "bottle", "wine glass", "cup", "fork",
+                     "knife", "spoon", "bowl"],
+            "음식": ["banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake"],
+            "가구": ["chair", "sofa", "pottedplant", "bed", "diningtable", "toilet"],
+            "전자기기": ["tvmonitor", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster",
+                     "refrigerator", "sink"],
+            "기타": ["traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "frisbee", "skis",
+                   "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard",
+                   "tennis racket", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"]
+        }
+
+        # 현재 탐지 중인 객체 수 저장
+        self.current_detections = {}
+
+        # 시그널 추가
+        self.current_detection_updated = pyqtSignal(dict)
+
         self.detector_type = None
         self.detector_version = None
         self.detector_model = None
@@ -33,6 +69,15 @@ class DetectorManager(QObject):
 
         # 마지막 탐지 횟수 업데이트 시간 초기화
         self.last_counts_update_time = 0
+
+        # 현재 탐지 중인 객체 수 저장
+        self.current_detections = {}
+
+        # Initialize the current detections dictionary
+        self.current_detections = {}
+
+        # 탐지 수 업데이트 시그널 추가
+        self.current_detection_updated = pyqtSignal(dict)
 
     def _init_detectors(self):
         """사용 가능한 탐지기 초기화"""
@@ -205,8 +250,7 @@ class DetectorManager(QObject):
         """탐지기 활성화 상태 확인"""
         return self.detector_type is not None
 
-    # detector_manager.py의 detect 메서드 수정
-    def detect(self, frame, text_scale=1.0, colors=None, selected_objects=None):
+    def detect(self, frame, text_scale=1.0, colors=None):
         """객체 탐지 수행"""
         if not self.detector_type:
             return frame, [], "탐지기가 설정되지 않았습니다."
@@ -215,57 +259,44 @@ class DetectorManager(QObject):
             detect_func = self.detectors[self.detector_type]["detect_func"]
             start_time = time.time()
 
-            # 색상 정보 설정 (colors 매개변수가 전달되지 않은 경우 기본값 사용)
+            # 기본 색상 설정 (colors 매개변수가 전달되지 않은 경우)
             if colors is None:
                 colors = {
                     "person": (0, 255, 0),  # 사람: 초록색 (BGR)
                     "default": (0, 0, 255)  # 기타 객체: 빨간색 (BGR)
                 }
 
-            # 선택된 객체 정보 설정 (전달되지 않은 경우 기존 매개변수 사용)
-            if selected_objects is None:
-                selected_objects = self.detector_params.get('objects_to_detect', {})
-
-            # 기존 매개변수 업데이트 (선택적으로)
-            update_params = False
-            if selected_objects:
-                self.detector_params['objects_to_detect'] = selected_objects
-                update_params = True
-
-            # 여기서 현재 객체 서브클래스가 해당 매개변수들을 지원하는지 확인하고 적절하게 호출
+            # 안전하게 함수 호출
             try:
-                # colors와 selected_objects를 모두 지원하는지 확인
-                if 'selected_objects' in inspect.signature(detect_func).parameters:
-                    # 두 매개변수 모두 지원
-                    result_frame, detections = detect_func(
-                        frame, text_scale=text_scale,
-                        colors=colors, selected_objects=selected_objects
-                    )
-                else:
-                    # colors만 지원하는지 확인
-                    try:
-                        result_frame, detections = detect_func(
-                            frame, text_scale=text_scale, colors=colors
-                        )
-                    except TypeError:
-                        # 기본 호출 시도
-                        result_frame, detections = detect_func(frame)
+                result_frame, detections = detect_func(frame, text_scale=text_scale, colors=colors)
+            except TypeError:
+                # 인수가 맞지 않으면 기본 매개변수로 호출
+                try:
+                    result_frame, detections = detect_func(frame)
+                except Exception as e:
+                    print(f"탐지 함수 호출 중 오류 발생: {str(e)}")
+                    result_frame = frame.copy()
+                    detections = []
             except Exception as e:
-                print(f"탐지 함수 호출 오류: {str(e)}")
-                # 기본 처리 - 원본 프레임 반환
-                result_frame = frame
+                print(f"탐지 함수 호출 중 오류 발생: {str(e)}")
+                result_frame = frame.copy()
                 detections = []
 
             detection_time = time.time() - start_time
 
             # 결과 텍스트 생성
             person_count = sum(1 for d in detections if d.get("class_name", "").lower() == "person")
+            other_count = len(detections) - person_count
+
             result_text = f"탐지된 사람: {person_count}명"
-            if len(detections) > person_count:
-                result_text += f"\n기타 객체: {len(detections) - person_count}개"
+            if other_count > 0:
+                result_text += f"\n기타 객체: {other_count}개"
 
             result_text += f"\n처리 시간: {detection_time:.3f}초"
             self.detection_result_signal.emit(result_text)
+
+            # 탐지 횟수 업데이트 (필요한 경우)
+            self.update_detection_counts(detections)
 
             return result_frame, detections, result_text
 
@@ -419,22 +450,27 @@ class DetectorManager(QObject):
 
         return frame, []
 
-    def _detect_yolov4(self, frame, text_scale=1.0, colors=None, selected_objects=None):
+    def _detect_yolov4(self, frame, text_scale=1.0, colors=None):
         """YOLOv4를 사용한 객체 탐지"""
         # 매개변수
         conf_threshold = self.detector_params.get('conf_threshold', 0.4)
         nms_threshold = self.detector_params.get('nms_threshold', 0.4)
 
         # 객체 선택 목록 가져오기
-        if selected_objects is None:
-            selected_objects = self.detector_params.get('objects_to_detect', {})
+        objects_to_detect = self.detector_params.get('objects_to_detect', {})
 
-        # 기본 색상 설정
-        if colors is None:
-            colors = {
-                "person": (0, 255, 0),  # 사람: 초록색 (BGR)
-                "default": (0, 0, 255)  # 기타 객체: 빨간색 (BGR)
-            }
+        # 카테고리별 색상 가져오기
+        category_colors = self.detector_params.get('category_colors', {})
+
+        # 기본 색상 설정 (카테고리별로 적용)
+        default_colors = {}
+        for category, color in CATEGORY_COLORS.items():
+            default_colors[category] = color
+
+        # 사용자 정의 색상이 있으면 적용
+        if category_colors:
+            for category, color in category_colors.items():
+                default_colors[category] = color
 
         # 처리 속도를 위해 프레임 크기를 더 작게 감소
         scale_factor = 0.3  # 이미지 크기를 30%로 줄임
@@ -452,6 +488,8 @@ class DetectorManager(QObject):
         boxes = []
         confidences = []
         class_ids = []
+        class_names = []
+        categories = []
 
         for output in outputs:
             for detection in output:
@@ -462,8 +500,12 @@ class DetectorManager(QObject):
                 # 클래스 이름 가져오기
                 class_name = self.yolo_classes[class_id] if class_id < len(self.yolo_classes) else f"Class {class_id}"
 
+                # 객체의 카테고리 결정
+                category = self.get_category_for_class(class_name)
+
                 # 신뢰도 임계값 이상이고 선택된 객체만 처리
-                if confidence > conf_threshold and (not selected_objects or selected_objects.get(class_name, False)):
+                # 선택된 객체가 없으면 모든 객체 표시, 있으면 선택된 객체만 표시
+                if confidence > conf_threshold and (not objects_to_detect or objects_to_detect.get(class_name, False)):
                     # 원본 이미지 크기에 맞게 좌표 계산
                     center_x = int((detection[0] * width) / scale_factor)
                     center_y = int((detection[1] * height) / scale_factor)
@@ -481,6 +523,8 @@ class DetectorManager(QObject):
                     boxes.append([x, y, w, h])
                     confidences.append(float(confidence))
                     class_ids.append(class_id)
+                    class_names.append(class_name)
+                    categories.append(category)
 
         # 비최대 억제 적용
         indices = cv2.dnn.NMSBoxes(boxes, confidences, conf_threshold, nms_threshold)
@@ -499,16 +543,12 @@ class DetectorManager(QObject):
                 box = boxes[i]
                 x, y, w, h = box
                 class_id = class_ids[i]
+                class_name = class_names[i]
+                category = categories[i]
                 confidence = confidences[i]
 
-                # 클래스 이름
-                class_name = self.yolo_classes[class_id] if class_id < len(self.yolo_classes) else f"Class {class_id}"
-
-                # 박스 그리기 - 객체 유형에 맞는 색상 선택
-                if class_name in colors:
-                    color = colors[class_name]
-                else:
-                    color = colors.get("default", (0, 255, 0))
+                # 카테고리에 따른 색상 선택
+                color = default_colors.get(category, default_colors.get('기타', (128, 128, 128)))
 
                 # 박스 그리기 - 경계선 굵기 증가
                 line_thickness = 2
@@ -526,13 +566,17 @@ class DetectorManager(QObject):
                 # 텍스트 그리기 (흰색)
                 cv2.putText(result_frame, label, (x, y - 5), font, font_scale, (255, 255, 255), 1, cv2.LINE_AA)
 
-                # 탐지 정보 저장
+                # 탐지 정보 저장 (카테고리 정보 추가)
                 detections.append({
                     "class_id": class_id,
                     "class_name": class_name,
+                    "category": category,
                     "confidence": confidence,
                     "box": [x, y, w, h]
                 })
+
+        # 현재 탐지 수 업데이트
+        self.update_current_detections(detections)
 
         return result_frame, detections
 
@@ -660,22 +704,125 @@ class DetectorManager(QObject):
 
     def update_detection_counts(self, detections):
         """객체별 탐지 횟수 업데이트"""
-        # 이 프레임에서 탐지된 객체 수 계산
-        frame_counts = {}
-        for detection in detections:
-            class_name = detection.get("class_name", "unknown").lower()
-            frame_counts[class_name] = frame_counts.get(class_name, 0) + 1
+        # 이 메서드가 구현되지 않은 경우를 위한 안전 확인
+        if not hasattr(self, 'detection_counts'):
+            self.detection_counts = {}
 
-        # 전체 카운트에 추가
-        for class_name, count in frame_counts.items():
+        # 이번 프레임에서 탐지된 객체 카운트
+        current_counts = {}
+        for detection in detections:
+            class_name = detection.get("class_name", "unknown")
+            current_counts[class_name] = current_counts.get(class_name, 0) + 1
+
+        # 전체 카운트 업데이트
+        for class_name, count in current_counts.items():
             self.detection_counts[class_name] = self.detection_counts.get(class_name, 0) + count
 
-        # 시그널 발생 (모든 프레임마다가 아닌 1초에 한 번 정도로 제한)
-        current_time = time.time()
-        if current_time - self.last_counts_update_time > 1.0:
-            self.last_counts_update_time = current_time
+        # 시그널 발생 (있는 경우)
+        if hasattr(self, 'detection_counts_updated'):
             self.detection_counts_updated.emit(self.detection_counts)
 
     def get_detection_counts(self):
-        """현재 탐지 횟수 딕셔너리 반환"""
+        """현재 객체별 탐지 횟수 반환"""
+        if not hasattr(self, 'detection_counts'):
+            self.detection_counts = {}
         return self.detection_counts
+
+    def update_current_detections(self, detections):
+        """현재 프레임에서 탐지된 객체 수 업데이트"""
+        # 현재 프레임의 탐지 수 계산
+        current_counts = {}
+        for detection in detections:
+            class_name = detection.get("class_name", "unknown")
+            current_counts[class_name] = current_counts.get(class_name, 0) + 1
+
+        # 변경 사항이 있을 때만 시그널 발생
+        if current_counts != self.current_detections:
+            self.current_detections = current_counts
+            self.current_detection_updated.emit(self.current_detections)
+
+        return current_counts
+
+    def get_current_detections(self):
+        """Return current object detection counts"""
+        return self.current_detections
+
+    def get_category_for_class(self, class_name):
+        """클래스 이름에 해당하는 카테고리 반환"""
+        for category, classes in self.categories.items():
+            if class_name in classes:
+                return category
+        return "기타"  # 기본 카테고리
+
+# 카테고리별 색상 정의 (BGR 형식)
+CATEGORY_COLORS = {
+    'person': (0, 255, 0),     # 초록색
+    'animal': (0, 165, 255),   # 주황색
+    'vehicle': (0, 0, 255),    # 빨간색
+    'household': (255, 0, 0),  # 파란색
+    'electronic': (255, 255, 0), # 청록색
+    'food': (255, 0, 255),     # 분홍색
+    'outdoor': (128, 0, 128),  # 보라색
+    'other': (128, 128, 128)   # 회색
+}
+
+# 객체 카테고리 정의
+OBJECT_CATEGORIES = {
+    'person': '사람',
+    'animal': '동물',
+    'vehicle': '교통수단',
+    'household': '가정용품',
+    'electronic': '전자제품',
+    'food': '음식',
+    'outdoor': '야외용품',
+    'other': '기타'
+}
+
+# 카테고리별 클래스 매핑
+CATEGORY_MAPPING = {
+    # 사람
+    'person': 'person',
+
+    # 동물
+    'bird': 'animal', 'cat': 'animal', 'dog': 'animal', 'horse': 'animal',
+    'sheep': 'animal', 'cow': 'animal', 'elephant': 'animal', 'bear': 'animal',
+    'zebra': 'animal', 'giraffe': 'animal',
+
+    # 교통수단
+    'bicycle': 'vehicle', 'car': 'vehicle', 'motorbike': 'vehicle', 'aeroplane': 'vehicle',
+    'bus': 'vehicle', 'train': 'vehicle', 'truck': 'vehicle', 'boat': 'vehicle',
+
+    # 가정용품
+    'chair': 'household', 'sofa': 'household', 'pottedplant': 'household', 'bed': 'household',
+    'diningtable': 'household', 'toilet': 'household', 'tvmonitor': 'household',
+
+    # 전자제품
+    'laptop': 'electronic', 'mouse': 'electronic', 'remote': 'electronic', 'keyboard': 'electronic',
+    'cell phone': 'electronic', 'microwave': 'electronic', 'oven': 'electronic',
+    'toaster': 'electronic', 'refrigerator': 'electronic',
+
+    # 음식
+    'banana': 'food', 'apple': 'food', 'sandwich': 'food', 'orange': 'food', 'broccoli': 'food',
+    'carrot': 'food', 'hot dog': 'food', 'pizza': 'food', 'donut': 'food', 'cake': 'food',
+
+    # 야외용품
+    'backpack': 'outdoor', 'umbrella': 'outdoor', 'handbag': 'outdoor', 'tie': 'outdoor',
+    'suitcase': 'outdoor', 'frisbee': 'outdoor', 'skis': 'outdoor', 'snowboard': 'outdoor',
+    'sports ball': 'outdoor', 'kite': 'outdoor'
+}
+
+# 카테고리별 색상 정의 (BGR 형식)
+CATEGORY_COLORS = {
+    'person': (0, 255, 0),  # 초록색
+    'animal': (0, 165, 255),  # 주황색
+    'vehicle': (0, 0, 255),  # 빨간색
+    'household': (255, 0, 0),  # 파란색
+    'electronic': (255, 255, 0),  # 청록색
+    'food': (255, 0, 255),  # 분홍색
+    'outdoor': (128, 0, 128),  # 보라색
+    'other': (128, 128, 128)  # 회색
+}
+
+
+
+
