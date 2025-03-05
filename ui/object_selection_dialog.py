@@ -12,104 +12,66 @@ class ObjectSelectionDialog(QDialog):
     def __init__(self, detector_manager, parent=None):
         super().__init__(parent)
 
-        # 필요한 속성 초기화
+        # Store references
         self.detector_manager = detector_manager
         self.parent = parent
 
-        if hasattr(parent, 'camera_manager'):
+        # Get camera manager from parent (safely)
+        if parent and hasattr(parent, 'camera_manager'):
             self.camera_manager = parent.camera_manager
         else:
             self.camera_manager = None
 
-        # update_frame 메서드가 호출되지 않도록 임시 구현
-        self.update_frame = lambda *args, **kwargs: None
-
-
-
-        # UI 파일 로드
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        ui_file = os.path.join(current_dir, 'ui_files', 'object_selection.ui')
-        uic.loadUi(ui_file, self)
-
-        # 창 속성 설정
-        self.setWindowFlags(Qt.Window | Qt.WindowSystemMenuHint |
-                            Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
-
-        self.detector_manager = detector_manager
-
-        # COCO 클래스 목록 가져오기
-        self.load_coco_classes()
-
-        # 카테고리 정의
-        self.define_categories()
-
-        # 카테고리 확장/축소 상태 초기화
-        self.category_expanded = {cat: True for cat in self.categories.keys()}
-
-        # 선택 상태 가져오기
-        self.selected_objects = self.detector_manager.get_objects_to_detect()
-
-        # UI 초기화 및 시그널 연결
+        # Initialize UI FIRST - this will create all UI elements including apply_button
         self.init_ui()
+
+        # Load available objects
+        self.load_objects()
+
+        # THEN connect signals - now all UI elements exist
         self.connect_signals()
 
-        # 창 제목 설정
-        self.setWindowTitle("탐지 객체 선택")
-
     def init_ui(self):
-        """UI 초기화"""
-        # 기존 위젯 초기화
-        if hasattr(self, 'othersLayout') and self.othersLayout.count() > 0:
-            # 기존 위젯 모두 제거
-            while self.othersLayout.count():
-                item = self.othersLayout.takeAt(0)
-                if item.widget():
-                    item.widget().deleteLater()
+        """UI 요소 초기화"""
+        # Set window title and size
+        self.setWindowTitle("객체 선택")
+        self.setMinimumSize(600, 400)
 
-        # 선택 상태 카운터 추가
-        selected_count = sum(1 for val in self.selected_objects.values() if val)
-        total_count = len(self.coco_classes)
+        # Main layout
+        layout = QVBoxLayout(self)
 
-        self.selectionCountLabel = QLabel(f"선택됨: {selected_count}/{total_count}")
-        self.selectionCountLabel.setAlignment(Qt.AlignCenter)
-        self.selectionCountLabel.setFont(QFont("", 10, QFont.Bold))
+        # Search box
+        search_layout = QHBoxLayout()
+        search_label = QLabel("검색:")
+        self.search_box = QLineEdit()
+        self.search_box.setPlaceholderText("객체 이름 검색...")
+        search_layout.addWidget(search_label)
+        search_layout.addWidget(self.search_box)
+        layout.addLayout(search_layout)
 
-        # 상단 영역에 선택 카운터 추가
-        if not hasattr(self, 'infoLayout'):
-            self.infoLayout = QVBoxLayout()
-            self.verticalLayout.insertLayout(2, self.infoLayout)  # 검색창 아래에 추가
+        # Object list with checkboxes
+        self.object_list = QListWidget()
+        self.object_list.setSelectionMode(QListWidget.MultiSelection)
+        layout.addWidget(self.object_list)
 
-        self.infoLayout.addWidget(self.selectionCountLabel)
+        # Select/Deselect All buttons
+        select_buttons_layout = QHBoxLayout()
+        self.select_all_button = QPushButton("모두 선택")
+        self.deselect_all_button = QPushButton("모두 해제")
+        select_buttons_layout.addWidget(self.select_all_button)
+        select_buttons_layout.addWidget(self.deselect_all_button)
+        layout.addLayout(select_buttons_layout)
 
-        # 카테고리별로 위젯 추가
-        for category_name, category_items in self.categories.items():
-            if not category_items:  # 빈 카테고리는 건너뛰기
-                continue
+        # Apply/Cancel buttons
+        buttons_layout = QHBoxLayout()
+        self.apply_button = QPushButton("적용")
+        self.cancel_button = QPushButton("취소")
+        buttons_layout.addStretch()
+        buttons_layout.addWidget(self.apply_button)
+        buttons_layout.addWidget(self.cancel_button)
+        layout.addLayout(buttons_layout)
 
-            # 카테고리 헤더 추가
-            header_frame = self.add_category_header(category_name, category_items)
-            self.othersLayout.addWidget(header_frame)
-
-            # 카테고리 컨텐츠를 담을 컨테이너
-            category_container = QWidget()
-            category_container.setObjectName(f"container_{category_name}")
-            category_layout = QVBoxLayout(category_container)
-            category_layout.setContentsMargins(20, 0, 0, 0)  # 왼쪽 여백으로 계층 구조 표시
-
-            # 카테고리에 속한 항목 추가
-            for cls in sorted(category_items):
-                checkbox_frame = self.create_checkbox_for_class(cls)
-                category_layout.addWidget(checkbox_frame)
-
-            # 컨테이너를 메인 레이아웃에 추가
-            self.othersLayout.addWidget(category_container)
-
-            # 접기/펼치기 초기 상태 설정
-            category_container.setVisible(self.category_expanded.get(category_name, True))
-
-        # 검색 및 선택 박스 초기화
-        self.searchEdit.clear()
-        self.update_selection_count()
+    # Other methods remain the same...
 
     def load_coco_classes(self):
         """COCO 클래스 목록과 한글 이름 로드"""
@@ -257,24 +219,19 @@ class ObjectSelectionDialog(QDialog):
         return frame
 
     def connect_signals(self):
-        """UI 요소 시그널 연결"""
-        # 검색 설정
-        self.setup_debounced_search()
+        """시그널 연결"""
+        # 버튼 시그널 연결
+        self.apply_button.clicked.connect(self.accept)
+        self.cancel_button.clicked.connect(self.reject)
 
-        # 버튼 연결
-        self.selectAllButton.clicked.connect(self.select_all)
-        self.deselectAllButton.clicked.connect(self.deselect_all)
-        self.resetButton.clicked.connect(self.reset_to_default)
+        # 검색 시그널 연결
+        self.search_box.textChanged.connect(self.filter_objects)
 
-        # 확인/취소 버튼
-        self.applyButton.clicked.connect(self.accept)
-        self.cancelButton.clicked.connect(self.reject)
+        # 모두 선택/해제 시그널 연결
+        self.select_all_button.clicked.connect(self.select_all_objects)
+        self.deselect_all_button.clicked.connect(self.deselect_all_objects)
 
-        # 탐지 매니저 시그널
-        self.camera_manager.frame_updated.connect(self.update_frame)
-        self.camera_manager.fps_updated.connect(self.update_fps)
-        self.camera_manager.system_status_signal.connect(self.update_system_status)
-        self.detector_manager.detection_result_signal.connect(self.update_detection_result)
+        # No camera manager signals - removed as suggested earlier
 
     def setup_debounced_search(self):
         """검색어 입력 지연 처리 설정"""
