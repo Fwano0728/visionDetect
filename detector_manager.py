@@ -5,8 +5,8 @@ import cv2
 import os
 import numpy as np
 import time
-import inspect
 from PyQt5.QtCore import QObject, pyqtSignal
+import json
 
 # 카테고리별 색상 정의 (BGR 형식)
 CATEGORY_COLORS = {
@@ -24,13 +24,18 @@ CATEGORY_COLORS = {
 class DetectorManager(QObject):
     """객체 탐지 알고리즘 관리 클래스"""
 
-    # 시그널 정의
+    # 클래스 수준에서 시그널 정의
     detection_result_signal = pyqtSignal(str)
-    detection_counts_updated = pyqtSignal(dict)  # 객체별 탐지 횟수 시그널
+    detection_counts_updated = pyqtSignal(dict)
     current_detection_updated = pyqtSignal(dict)
 
     def __init__(self):
         super().__init__()
+        self.detector_type = None
+        self.detector_version = None
+        self.detector_model = None
+        self.detector_params = {}
+        self.detectors = {}
 
         # 카테고리 정의
         self.categories = {
@@ -51,33 +56,75 @@ class DetectorManager(QObject):
         # 현재 탐지 중인 객체 수 저장
         self.current_detections = {}
 
-        # 시그널 추가
-        self.current_detection_updated = pyqtSignal(dict)
+        # 누적 탐지 횟수 저장
+        self.detection_counts = {}
 
-        self.detector_type = None
-        self.detector_version = None
-        self.detector_model = None
-        self.detector_params = {}
-        self.detectors = {}
+        # 카테고리별 색상 설정 로드
+        self.category_colors = self.load_category_colors()
 
         # 초기화
         self._init_detectors()
 
-        # 탐지 횟수 추적을 위한 변수 추가
-        self.detection_counts = {}
-        self.reset_detection_counts()
+    def load_category_colors(self):
+        """저장된 카테고리 색상 설정 로드"""
+        try:
+            # 설정 파일 경로
+            config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config')
+            settings_file = os.path.join(config_dir, 'object_colors.json')
 
-        # 마지막 탐지 횟수 업데이트 시간 초기화
-        self.last_counts_update_time = 0
+            if os.path.exists(settings_file):
+                with open(settings_file, 'r', encoding='utf-8') as f:
+                    color_dict = json.load(f)
 
-        # 현재 탐지 중인 객체 수 저장
-        self.current_detections = {}
+                # 색상 문자열을 BGR 튜플로 변환
+                category_colors = {}
+                for category, color_str in color_dict.items():
+                    # 색상 형식: '#RRGGBB'
+                    if color_str.startswith('#'):
+                        r = int(color_str[1:3], 16)
+                        g = int(color_str[3:5], 16)
+                        b = int(color_str[5:7], 16)
+                        category_colors[category] = (b, g, r)  # RGB를 BGR로 변환
+                    else:
+                        # 다른 형식일 경우 기본 색상 사용
+                        category_colors[category] = CATEGORY_COLORS.get(category, (128, 128, 128))
 
-        # Initialize the current detections dictionary
-        self.current_detections = {}
+                return category_colors
+            else:
+                # 파일이 없으면 기본 색상 사용
+                return CATEGORY_COLORS.copy()
+        except Exception as e:
+            print(f"색상 설정 로드 오류: {str(e)}")
+            return CATEGORY_COLORS.copy()
 
-        # 탐지 수 업데이트 시그널 추가
-        self.current_detection_updated = pyqtSignal(dict)
+    def save_category_colors(self, colors):
+        """카테고리 색상 설정 저장"""
+        try:
+            # 설정 디렉토리 경로
+            config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config')
+            os.makedirs(config_dir, exist_ok=True)
+
+            # 설정 파일 경로
+            settings_file = os.path.join(config_dir, 'object_colors.json')
+
+            # BGR 튜플을 색상 문자열로 변환
+            color_dict = {}
+            for category, color in colors.items():
+                if isinstance(color, tuple) and len(color) == 3:
+                    b, g, r = color  # BGR 형식
+                    color_dict[category] = f'#{r:02x}{g:02x}{b:02x}'  # BGR를 RGB로 변환하여 문자열로
+                else:
+                    # 튜플이 아닌 경우, 문자열 그대로 저장
+                    color_dict[category] = color
+
+            with open(settings_file, 'w', encoding='utf-8') as f:
+                json.dump(color_dict, f, ensure_ascii=False, indent=2)
+
+            print("카테고리 색상 설정이 저장되었습니다.")
+            return True
+        except Exception as e:
+            print(f"색상 설정 저장 오류: {str(e)}")
+            return False
 
     def _init_detectors(self):
         """사용 가능한 탐지기 초기화"""
@@ -91,100 +138,16 @@ class DetectorManager(QObject):
 
         # YOLO 탐지기
         self.detectors["YOLO"] = {
-            "versions": ["v4"],  # 실제 모델 확인 후 필터링될 것임
+            "versions": ["v4", "v5", "v7", "v8"],
             "models": {
                 "v4": ["YOLOv4-tiny", "YOLOv4"],
+                "v5": ["YOLOv5n", "YOLOv5s", "YOLOv5m"],
+                "v7": ["YOLOv7-tiny", "YOLOv7"],
+                "v8": ["YOLOv8n", "YOLOv8s", "YOLOv8x"]
             },
             "init_func": self._init_yolo_detector,
             "detect_func": self._detect_yolo
         }
-
-        # 모델 파일 존재 여부 확인 및 모델 목록 필터링
-        self._verify_model_files()
-
-    def _verify_model_files(self):
-        """각 모델의 파일 존재 여부 확인하고 실제 사용 가능한 모델 목록 업데이트"""
-        models_dir = "models/yolo"
-
-        # YOLO 모델 확인
-        if "YOLO" in self.detectors:
-            for version, models in list(self.detectors["YOLO"]["models"].items()):
-                available_models = []
-                for model_name in models:
-                    # 모델별 파일 경로 확인
-                    if version == "v4":
-                        if model_name == "YOLOv4-tiny":
-                            weights_path = os.path.join(models_dir, "yolov4-tiny.weights")
-                            config_path = os.path.join(models_dir, "yolov4-tiny.cfg")
-                        elif model_name == "YOLOv4":
-                            weights_path = os.path.join(models_dir, "yolov4.weights")
-                            config_path = os.path.join(models_dir, "yolov4.cfg")
-                        else:
-                            continue
-
-                        # 파일 존재 여부 확인
-                        if os.path.exists(weights_path) and os.path.exists(config_path):
-                            available_models.append(model_name)
-                            print(f"YOLO 모델 발견: {model_name}")
-
-                    # YOLOv5 모델 (아직 구현되지 않음, 미래 확장성을 위한 자리 표시자)
-                    elif version == "v5":
-                        # v5는 파일이 없으므로 모델 목록에 추가하지 않음
-                        continue
-
-                    # YOLOv8 모델 (Ultralytics)
-                    elif version == "v8":
-                        try:
-                            # Ultralytics 설치 여부 확인
-                            import importlib.util
-                            ultralytics_spec = importlib.util.find_spec("ultralytics")
-                            if ultralytics_spec is not None:
-                                # 패키지 설치됨, 이제 모델 파일 확인
-                                model_file = None
-                                if model_name == "YOLOv8n":
-                                    model_file = "yolov8n.pt"
-                                elif model_name == "YOLOv8s":
-                                    model_file = "yolov8s.pt"
-                                elif model_name == "YOLOv8m":
-                                    model_file = "yolov8m.pt"
-                                elif model_name == "YOLOv8l":
-                                    model_file = "yolov8l.pt"
-                                elif model_name == "YOLOv8x":
-                                    model_file = "yolov8x.pt"
-
-                                # 모델 파일 존재 여부 확인
-                                if model_file and (
-                                        os.path.exists(os.path.join(models_dir, model_file)) or
-                                        os.path.exists(model_file)
-                                ):
-                                    available_models.append(model_name)
-                                    print(f"YOLO 모델 발견: {model_name}")
-                        except:
-                            # Ultralytics 패키지가 설치되지 않음
-                            pass
-
-                # 사용 가능한 모델 목록 업데이트
-                if available_models:
-                    self.detectors["YOLO"]["models"][version] = available_models
-                else:
-                    # 사용 가능한 모델이 없는 버전은 목록에서 제거
-                    if version in self.detectors["YOLO"]["versions"]:
-                        self.detectors["YOLO"]["versions"].remove(version)
-                    del self.detectors["YOLO"]["models"][version]
-
-            # 가능한 버전이 없으면 빈 리스트로 설정
-            if not self.detectors["YOLO"]["versions"]:
-                print("사용 가능한 YOLO 모델이 없습니다.")
-                # 기본값으로 v4를 유지하되 모델 없음을 표시
-                self.detectors["YOLO"]["versions"] = ["v4"]
-                self.detectors["YOLO"]["models"]["v4"] = []
-
-    def _check_model_downloadable(self, model_file):
-        """모델이 자동으로 다운로드 가능한지 확인"""
-        # YOLOv8 모델은 자동 다운로드 지원
-        if model_file.startswith("yolov8"):
-            return True
-        return False
 
     def get_available_detectors(self):
         """사용 가능한 탐지기 목록 반환"""
@@ -198,8 +161,9 @@ class DetectorManager(QObject):
 
     def get_available_models(self, detector_type, version):
         """사용 가능한 모델 목록 반환"""
-        if detector_type in self.detectors and version in self.detectors[detector_type]["models"]:
-            return self.detectors[detector_type]["models"][version]
+        if detector_type in self.detectors:
+            if version in self.detectors[detector_type]["models"]:
+                return self.detectors[detector_type]["models"][version]
         return []
 
     def set_detector(self, detector_type, version=None, model=None, **params):
@@ -224,6 +188,11 @@ class DetectorManager(QObject):
         self.detector_version = version
         self.detector_model = model
         self.detector_params = params
+
+        # 카테고리 색상이 전달되었으면 저장
+        if 'category_colors' in params:
+            self.category_colors = params['category_colors']
+            self.save_category_colors(self.category_colors)
 
         # 초기화 함수 호출
         if detector_type in self.detectors:
@@ -250,57 +219,81 @@ class DetectorManager(QObject):
         """탐지기 활성화 상태 확인"""
         return self.detector_type is not None
 
-    def detect(self, frame, text_scale=1.0, colors=None):
+    def detect(self, frame, text_scale=1.0):
         """객체 탐지 수행"""
         if not self.detector_type:
             return frame, [], "탐지기가 설정되지 않았습니다."
 
-        if self.detector_type in self.detectors:
-            detect_func = self.detectors[self.detector_type]["detect_func"]
-            start_time = time.time()
+        try:
+            if self.detector_type in self.detectors:
+                detect_func = self.detectors[self.detector_type]["detect_func"]
+                start_time = time.time()
 
-            # 기본 색상 설정 (colors 매개변수가 전달되지 않은 경우)
-            if colors is None:
-                colors = {
-                    "person": (0, 255, 0),  # 사람: 초록색 (BGR)
-                    "default": (0, 0, 255)  # 기타 객체: 빨간색 (BGR)
-                }
+                # 탐지 함수 호출
+                result_frame, detections = detect_func(frame, text_scale=text_scale)
 
-            # 안전하게 함수 호출
-            try:
-                result_frame, detections = detect_func(frame, text_scale=text_scale, colors=colors)
-            except TypeError:
-                # 인수가 맞지 않으면 기본 매개변수로 호출
-                try:
-                    result_frame, detections = detect_func(frame)
-                except Exception as e:
-                    print(f"탐지 함수 호출 중 오류 발생: {str(e)}")
-                    result_frame = frame.copy()
-                    detections = []
-            except Exception as e:
-                print(f"탐지 함수 호출 중 오류 발생: {str(e)}")
-                result_frame = frame.copy()
-                detections = []
+                detection_time = time.time() - start_time
 
-            detection_time = time.time() - start_time
+                # 결과 텍스트 생성
+                person_count = sum(1 for d in detections if d.get("class_name", "").lower() == "person")
+                result_text = f"탐지된 사람: {person_count}명"
+                if len(detections) > person_count:
+                    result_text += f"\n기타 객체: {len(detections) - person_count}개"
 
-            # 결과 텍스트 생성
-            person_count = sum(1 for d in detections if d.get("class_name", "").lower() == "person")
-            other_count = len(detections) - person_count
+                result_text += f"\n처리 시간: {detection_time:.3f}초"
+                self.detection_result_signal.emit(result_text)
 
-            result_text = f"탐지된 사람: {person_count}명"
-            if other_count > 0:
-                result_text += f"\n기타 객체: {other_count}개"
+                return result_frame, detections, result_text
+        except Exception as e:
+            print(f"탐지 중 오류 발생: {str(e)}")
+            import traceback
+            traceback.print_exc()
 
-            result_text += f"\n처리 시간: {detection_time:.3f}초"
-            self.detection_result_signal.emit(result_text)
+        return frame, [], "탐지 중 오류가 발생했습니다."
 
-            # 탐지 횟수 업데이트 (필요한 경우)
-            self.update_detection_counts(detections)
+    def update_current_detections(self, detections):
+        """현재 프레임에서 탐지된 객체 수 업데이트"""
+        # 현재 프레임의 탐지 수 계산
+        current_counts = {}
+        for detection in detections:
+            class_name = detection.get("class_name", "unknown")
+            current_counts[class_name] = current_counts.get(class_name, 0) + 1
 
-            return result_frame, detections, result_text
+            # 누적 탐지 횟수도 업데이트
+            self.detection_counts[class_name] = self.detection_counts.get(class_name, 0) + 1
 
-        return frame, [], "지원되지 않는 탐지기 유형입니다."
+        # 변경 사항이 있을 때만 시그널 발생
+        if current_counts != self.current_detections:
+            self.current_detections = current_counts
+            self.current_detection_updated.emit(self.current_detections)
+            self.detection_counts_updated.emit(self.detection_counts)
+
+        return current_counts
+
+    def get_current_detections(self):
+        """현재 탐지 중인 객체 수 반환"""
+        return self.current_detections
+
+    def get_detection_counts(self):
+        """누적 탐지 횟수 반환"""
+        return self.detection_counts
+
+    def get_category_for_class(self, class_name):
+        """클래스 이름에 해당하는 카테고리 반환"""
+        for category, classes in self.categories.items():
+            if class_name in classes:
+                return category
+        return "기타"  # 기본 카테고리
+
+    def set_objects_to_detect(self, objects_to_detect):
+        """탐지할 객체 목록 설정"""
+        if self.detector_type is None:
+            return False, "탐지기가 설정되지 않았습니다."
+
+        # 현재 설정 업데이트
+        self.detector_params['objects_to_detect'] = objects_to_detect
+
+        return True, "탐지 객체가 업데이트되었습니다."
 
     # HOG 탐지기 관련 메서드
     def _init_hog_detector(self, version=None, model=None, **params):
@@ -313,7 +306,7 @@ class DetectorManager(QObject):
             print(f"HOG 탐지기 초기화 실패: {str(e)}")
             return False, f"HOG 탐지기 초기화 실패: {str(e)}"
 
-    def _detect_hog(self, frame):
+    def _detect_hog(self, frame, text_scale=1.0):
         """HOG를 사용하여 사람 탐지"""
         # 성능을 위해 이미지 크기 조정
         height, width = frame.shape[:2]
@@ -357,6 +350,9 @@ class DetectorManager(QObject):
                 "confidence": confidence,
                 "box": [x, y, w, h]
             })
+
+        # 현재 탐지 수 업데이트
+        self.update_current_detections(detections)
 
         return result_frame, detections
 
@@ -433,24 +429,16 @@ class DetectorManager(QObject):
             traceback.print_exc()
             return False, f"YOLO 모델 로드 실패: {str(e)}"
 
-    def _detect_yolo(self, frame, text_scale=1.0, colors=None):
+    def _detect_yolo(self, frame, text_scale=1.0):
         """YOLO를 사용한 객체 탐지"""
         if self.detector_version == "v8" and hasattr(self, 'yolo8_model'):
-            # YOLOv8 분기
-            if colors is not None:
-                return self._detect_yolov8(frame, text_scale, colors)
-            else:
-                return self._detect_yolov8(frame, text_scale)
+            return self._detect_yolov8(frame, text_scale)
         elif hasattr(self, 'yolo_net'):
-            # YOLOv4 분기
-            if colors is not None:
-                return self._detect_yolov4(frame, text_scale, colors)
-            else:
-                return self._detect_yolov4(frame, text_scale)
+            return self._detect_yolov4(frame, text_scale)
 
         return frame, []
 
-    def _detect_yolov4(self, frame, text_scale=1.0, colors=None):
+    def _detect_yolov4(self, frame, text_scale=1.0):
         """YOLOv4를 사용한 객체 탐지"""
         # 매개변수
         conf_threshold = self.detector_params.get('conf_threshold', 0.4)
@@ -458,19 +446,6 @@ class DetectorManager(QObject):
 
         # 객체 선택 목록 가져오기
         objects_to_detect = self.detector_params.get('objects_to_detect', {})
-
-        # 카테고리별 색상 가져오기
-        category_colors = self.detector_params.get('category_colors', {})
-
-        # 기본 색상 설정 (카테고리별로 적용)
-        default_colors = {}
-        for category, color in CATEGORY_COLORS.items():
-            default_colors[category] = color
-
-        # 사용자 정의 색상이 있으면 적용
-        if category_colors:
-            for category, color in category_colors.items():
-                default_colors[category] = color
 
         # 처리 속도를 위해 프레임 크기를 더 작게 감소
         scale_factor = 0.3  # 이미지 크기를 30%로 줄임
@@ -548,7 +523,7 @@ class DetectorManager(QObject):
                 confidence = confidences[i]
 
                 # 카테고리에 따른 색상 선택
-                color = default_colors.get(category, default_colors.get('기타', (128, 128, 128)))
+                color = self.category_colors.get(category, CATEGORY_COLORS.get(category, (128, 128, 128)))
 
                 # 박스 그리기 - 경계선 굵기 증가
                 line_thickness = 2
@@ -580,7 +555,7 @@ class DetectorManager(QObject):
 
         return result_frame, detections
 
-    def _detect_yolov8(self, frame, text_scale=1.0, colors=None):
+    def _detect_yolov8(self, frame, text_scale=1.0):
         """YOLOv8을 사용한 객체 탐지"""
         # 매개변수
         conf_threshold = self.detector_params.get('conf_threshold', 0.4)
@@ -588,47 +563,42 @@ class DetectorManager(QObject):
         # 객체 선택 목록 가져오기
         objects_to_detect = self.detector_params.get('objects_to_detect', {})
 
-        # 기본 색상 설정
-        if colors is None:
-            colors = {
-                "person": (0, 255, 0),  # 사람: 초록색
-                "default": (0, 0, 255)  # 기타 객체: 빨간색
-            }
-
         # 모델 실행
         results = self.yolo8_model(frame, conf=conf_threshold)
         result = results[0]  # 첫 번째 결과
 
-        # 탐지 정보 가져오기
-        detections = []
+        # 결과 이미지
         result_frame = frame.copy()
 
+        # 탐지 정보 가져오기
+        detections = []
+
+        # 각 객체마다 처리
         for box in result.boxes:
             x1, y1, x2, y2 = box.xyxy[0].tolist()
             confidence = box.conf[0].item()
             class_id = int(box.cls[0].item())
             class_name = result.names[class_id]
 
+            # 카테고리 결정
+            category = self.get_category_for_class(class_name)
+
             # 선택된 객체만 처리
             if not objects_to_detect or objects_to_detect.get(class_name, False):
-                # 좌표 정수로 변환
+                # 좌표를 정수로 변환
                 x, y = int(x1), int(y1)
                 w, h = int(x2 - x1), int(y2 - y1)
 
-                # 객체 유형에 맞는 색상 선택
-                if class_name in colors:
-                    color = colors[class_name]
-                else:
-                    color = colors.get("default", (0, 255, 0))
+                # 카테고리에 따른 색상 선택
+                color = self.category_colors.get(category, CATEGORY_COLORS.get(category, (128, 128, 128)))
 
-                # 박스 그리기 - 경계선 굵기 증가
-                line_thickness = 2
-                cv2.rectangle(result_frame, (x, y), (x + w, y + h), color, line_thickness)
+                # 박스 그리기
+                cv2.rectangle(result_frame, (x, y), (x + w, y + h), color, 2)
 
-                # 텍스트 배경 그리기 (가독성 개선)
+                # 텍스트 배경 그리기
                 label = f'{class_name} {confidence:.2f}'
                 font = cv2.FONT_HERSHEY_SIMPLEX
-                font_scale = text_scale * 0.5  # 텍스트 크기 조정
+                font_scale = text_scale * 0.5
                 t_size = cv2.getTextSize(label, font, font_scale, 1)[0]
 
                 # 텍스트 배경 박스
@@ -641,188 +611,12 @@ class DetectorManager(QObject):
                 detections.append({
                     "class_id": class_id,
                     "class_name": class_name,
+                    "category": category,
                     "confidence": confidence,
                     "box": [x, y, w, h]
                 })
 
+        # 현재 탐지 수 업데이트
+        self.update_current_detections(detections)
+
         return result_frame, detections
-
-    def get_objects_to_detect(self):
-        """탐지할 객체 목록 반환"""
-        # 객체 선택 상태가 없으면 기본값 반환 (모든 객체 선택)
-        if not hasattr(self, 'objects_to_detect'):
-            # COCO 클래스 목록 가져오기
-            coco_classes = []
-            try:
-                with open("models/yolo/coco.names", "r") as f:
-                    coco_classes = f.read().strip().split("\n")
-            except:
-                # 기본 COCO 클래스 목록 (80개 클래스)
-                coco_classes = ["person", "bicycle", "car", ...]
-
-            # 기본값: 모든 객체 선택
-            self.objects_to_detect = {cls: True for cls in coco_classes}
-
-        return self.objects_to_detect
-
-    def set_objects_to_detect(self, objects_dict):
-        """탐지할 객체 목록 설정"""
-        # 객체 선택 상태 저장
-        self.objects_to_detect = objects_dict
-
-        # 현재 활성화된 탐지기가 있으면 설정 적용
-        if self.is_active():
-            # 현재 매개변수 가져오기
-            params = self.detector_params.copy() if hasattr(self, 'detector_params') else {}
-            params['objects_to_detect'] = objects_dict
-
-            # 탐지기 재설정 (같은 설정으로)
-            return self.set_detector(
-                self.detector_type,
-                self.detector_version,
-                self.detector_model,
-                **params
-            )
-
-        return True, "탐지 객체 설정이 저장되었습니다."
-
-    def reset_detection_counts(self):
-        """탐지 횟수 초기화"""
-        self.detection_counts = {}
-
-        # COCO 클래스 목록 가져오기
-        try:
-            with open("models/yolo/coco.names", "r") as f:
-                coco_classes = f.read().strip().split("\n")
-                self.detection_counts = {cls: 0 for cls in coco_classes}
-        except:
-            # 기본적으로는 빈 딕셔너리로 시작
-            pass
-
-        # 시그널 발생
-        self.detection_counts_updated.emit(self.detection_counts)
-
-    def update_detection_counts(self, detections):
-        """객체별 탐지 횟수 업데이트"""
-        # 이 메서드가 구현되지 않은 경우를 위한 안전 확인
-        if not hasattr(self, 'detection_counts'):
-            self.detection_counts = {}
-
-        # 이번 프레임에서 탐지된 객체 카운트
-        current_counts = {}
-        for detection in detections:
-            class_name = detection.get("class_name", "unknown")
-            current_counts[class_name] = current_counts.get(class_name, 0) + 1
-
-        # 전체 카운트 업데이트
-        for class_name, count in current_counts.items():
-            self.detection_counts[class_name] = self.detection_counts.get(class_name, 0) + count
-
-        # 시그널 발생 (있는 경우)
-        if hasattr(self, 'detection_counts_updated'):
-            self.detection_counts_updated.emit(self.detection_counts)
-
-    def get_detection_counts(self):
-        """현재 객체별 탐지 횟수 반환"""
-        if not hasattr(self, 'detection_counts'):
-            self.detection_counts = {}
-        return self.detection_counts
-
-    def update_current_detections(self, detections):
-        """현재 프레임에서 탐지된 객체 수 업데이트"""
-        # 현재 프레임의 탐지 수 계산
-        current_counts = {}
-        for detection in detections:
-            class_name = detection.get("class_name", "unknown")
-            current_counts[class_name] = current_counts.get(class_name, 0) + 1
-
-        # 변경 사항이 있을 때만 시그널 발생
-        if current_counts != self.current_detections:
-            self.current_detections = current_counts
-            self.current_detection_updated.emit(self.current_detections)
-
-        return current_counts
-
-    def get_current_detections(self):
-        """Return current object detection counts"""
-        return self.current_detections
-
-    def get_category_for_class(self, class_name):
-        """클래스 이름에 해당하는 카테고리 반환"""
-        for category, classes in self.categories.items():
-            if class_name in classes:
-                return category
-        return "기타"  # 기본 카테고리
-
-# 카테고리별 색상 정의 (BGR 형식)
-CATEGORY_COLORS = {
-    'person': (0, 255, 0),     # 초록색
-    'animal': (0, 165, 255),   # 주황색
-    'vehicle': (0, 0, 255),    # 빨간색
-    'household': (255, 0, 0),  # 파란색
-    'electronic': (255, 255, 0), # 청록색
-    'food': (255, 0, 255),     # 분홍색
-    'outdoor': (128, 0, 128),  # 보라색
-    'other': (128, 128, 128)   # 회색
-}
-
-# 객체 카테고리 정의
-OBJECT_CATEGORIES = {
-    'person': '사람',
-    'animal': '동물',
-    'vehicle': '교통수단',
-    'household': '가정용품',
-    'electronic': '전자제품',
-    'food': '음식',
-    'outdoor': '야외용품',
-    'other': '기타'
-}
-
-# 카테고리별 클래스 매핑
-CATEGORY_MAPPING = {
-    # 사람
-    'person': 'person',
-
-    # 동물
-    'bird': 'animal', 'cat': 'animal', 'dog': 'animal', 'horse': 'animal',
-    'sheep': 'animal', 'cow': 'animal', 'elephant': 'animal', 'bear': 'animal',
-    'zebra': 'animal', 'giraffe': 'animal',
-
-    # 교통수단
-    'bicycle': 'vehicle', 'car': 'vehicle', 'motorbike': 'vehicle', 'aeroplane': 'vehicle',
-    'bus': 'vehicle', 'train': 'vehicle', 'truck': 'vehicle', 'boat': 'vehicle',
-
-    # 가정용품
-    'chair': 'household', 'sofa': 'household', 'pottedplant': 'household', 'bed': 'household',
-    'diningtable': 'household', 'toilet': 'household', 'tvmonitor': 'household',
-
-    # 전자제품
-    'laptop': 'electronic', 'mouse': 'electronic', 'remote': 'electronic', 'keyboard': 'electronic',
-    'cell phone': 'electronic', 'microwave': 'electronic', 'oven': 'electronic',
-    'toaster': 'electronic', 'refrigerator': 'electronic',
-
-    # 음식
-    'banana': 'food', 'apple': 'food', 'sandwich': 'food', 'orange': 'food', 'broccoli': 'food',
-    'carrot': 'food', 'hot dog': 'food', 'pizza': 'food', 'donut': 'food', 'cake': 'food',
-
-    # 야외용품
-    'backpack': 'outdoor', 'umbrella': 'outdoor', 'handbag': 'outdoor', 'tie': 'outdoor',
-    'suitcase': 'outdoor', 'frisbee': 'outdoor', 'skis': 'outdoor', 'snowboard': 'outdoor',
-    'sports ball': 'outdoor', 'kite': 'outdoor'
-}
-
-# 카테고리별 색상 정의 (BGR 형식)
-CATEGORY_COLORS = {
-    'person': (0, 255, 0),  # 초록색
-    'animal': (0, 165, 255),  # 주황색
-    'vehicle': (0, 0, 255),  # 빨간색
-    'household': (255, 0, 0),  # 파란색
-    'electronic': (255, 255, 0),  # 청록색
-    'food': (255, 0, 255),  # 분홍색
-    'outdoor': (128, 0, 128),  # 보라색
-    'other': (128, 128, 128)  # 회색
-}
-
-
-
-
