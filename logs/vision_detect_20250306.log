@@ -1,0 +1,419 @@
+2025-03-06 10:27:40,850 - root - INFO - 로깅 시스템 초기화 완료
+2025-03-06 10:27:40,850 - root - INFO - 객체 탐지 시스템 v1.0.0 시작
+2025-03-06 10:27:41,179 - core.camera.camera_manager - INFO - 카메라 발견: ID 0 - Logitech C920
+2025-03-06 10:27:41,925 - core.camera.camera_manager - INFO - 카메라 발견: ID 2 - Logitech StreamCam
+2025-03-06 10:27:42,091 - core.camera.camera_manager - INFO - 사용 가능한 카메라: {'Logitech C920': 0, 'Logitech StreamCam': 2}
+2025-03-06 10:27:42,092 - core.camera.camera_manager - INFO - 카메라 매니저 초기화 완료
+2025-03-06 10:27:42,096 - detection.detector_manager - INFO - YOLOv8 지원 활성화됨
+2025-03-06 10:27:42,096 - detection.detector_manager - INFO - 탐지기 매니저 초기화 완료
+2025-03-06 10:27:42,129 - ui.main_window.main_window_init - ERROR - UI 초기화 오류: type object 'Qt' has no attribute 'QSize'
+2025-03-06 10:27:42,129 - ui.error_handling - ERROR - 시그널 연결 중 오류가 발생했습니다.
+'NoneType' object has no attribute 'action_Connect'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 79, in connect_signals
+    self.handlers.connect_signals()
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 39, in connect_signals
+    self.ui.action_Connect.triggered.connect(self.on_connect_camera)
+AttributeError: 'NoneType' object has no attribute 'action_Connect'
+
+2025-03-06 10:27:42,136 - ui.error_handling - ERROR - 오류 발생: 시그널 연결 중 오류가 발생했습니다. - 'NoneType' object has no attribute 'action_Connect'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 79, in connect_signals
+    self.handlers.connect_signals()
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 39, in connect_signals
+    self.ui.action_Connect.triggered.connect(self.on_connect_camera)
+AttributeError: 'NoneType' object has no attribute 'action_Connect'
+
+2025-03-06 10:27:45,970 - ui.main_window.main_window - INFO - 메인 윈도우 초기화 완료
+2025-03-06 10:28:00,070 - ui.main_window.main_window - INFO - 프로그램 종료
+2025-03-06 10:29:12,307 - root - INFO - 로깅 시스템 초기화 완료
+2025-03-06 10:29:12,307 - root - INFO - 객체 탐지 시스템 v1.0.0 시작
+2025-03-06 10:29:12,629 - core.camera.camera_manager - INFO - 카메라 발견: ID 0 - Logitech C920
+2025-03-06 10:29:13,338 - core.camera.camera_manager - INFO - 카메라 발견: ID 2 - Logitech StreamCam
+2025-03-06 10:29:13,507 - core.camera.camera_manager - INFO - 사용 가능한 카메라: {'Logitech C920': 0, 'Logitech StreamCam': 2}
+2025-03-06 10:29:13,507 - core.camera.camera_manager - INFO - 카메라 매니저 초기화 완료
+2025-03-06 10:29:13,509 - detection.detector_manager - INFO - YOLOv8 지원 활성화됨
+2025-03-06 10:29:13,509 - detection.detector_manager - INFO - 탐지기 매니저 초기화 완료
+2025-03-06 10:29:13,540 - ui.main_window.main_window_init - INFO - 메인 윈도우 UI 초기화 완료
+2025-03-06 10:29:13,540 - ui.error_handling - ERROR - 시그널 연결 중 오류가 발생했습니다.
+'NoneType' object has no attribute 'action_Connect'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 79, in connect_signals
+    self.handlers.connect_signals()
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 39, in connect_signals
+    self.ui.action_Connect.triggered.connect(self.on_connect_camera)
+AttributeError: 'NoneType' object has no attribute 'action_Connect'
+
+2025-03-06 10:29:13,546 - ui.error_handling - ERROR - 오류 발생: 시그널 연결 중 오류가 발생했습니다. - 'NoneType' object has no attribute 'action_Connect'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 79, in connect_signals
+    self.handlers.connect_signals()
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 39, in connect_signals
+    self.ui.action_Connect.triggered.connect(self.on_connect_camera)
+AttributeError: 'NoneType' object has no attribute 'action_Connect'
+
+2025-03-06 10:29:15,980 - ui.main_window.main_window - INFO - 메인 윈도우 초기화 완료
+2025-03-06 10:45:21,343 - root - INFO - 로깅 시스템 초기화 완료
+2025-03-06 10:45:21,343 - root - INFO - 객체 탐지 시스템 v1.0.0 시작
+2025-03-06 10:45:21,664 - core.camera.camera_manager - INFO - 카메라 발견: ID 0 - Logitech C920
+2025-03-06 10:45:22,358 - core.camera.camera_manager - INFO - 카메라 발견: ID 2 - Logitech StreamCam
+2025-03-06 10:45:22,526 - core.camera.camera_manager - INFO - 사용 가능한 카메라: {'Logitech C920': 0, 'Logitech StreamCam': 2}
+2025-03-06 10:45:22,526 - core.camera.camera_manager - INFO - 카메라 매니저 초기화 완료
+2025-03-06 10:45:22,528 - detection.detector_manager - INFO - YOLOv8 지원 활성화됨
+2025-03-06 10:45:22,528 - detection.detector_manager - INFO - 탐지기 매니저 초기화 완료
+2025-03-06 10:45:22,556 - ui.main_window.main_window_init - INFO - 메인 윈도우 UI 초기화 완료
+2025-03-06 10:45:22,556 - ui.main_window.main_window_handlers - ERROR - 시그널 연결 중 오류: 'NoneType' object has no attribute 'refreshCameraButton'
+2025-03-06 10:45:22,557 - ui.error_handling - ERROR - 시그널 연결 중 오류가 발생했습니다.
+'NoneType' object has no attribute 'refreshCameraButton'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 46, in connect_signals
+    self.ui.refreshCameraButton.clicked.connect(self.on_refresh_cameras)
+AttributeError: 'NoneType' object has no attribute 'refreshCameraButton'
+
+2025-03-06 10:45:22,563 - ui.error_handling - ERROR - 오류 발생: 시그널 연결 중 오류가 발생했습니다. - 'NoneType' object has no attribute 'refreshCameraButton'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 46, in connect_signals
+    self.ui.refreshCameraButton.clicked.connect(self.on_refresh_cameras)
+AttributeError: 'NoneType' object has no attribute 'refreshCameraButton'
+
+2025-03-06 10:45:24,310 - ui.error_handling - ERROR - 시그널 연결 중 오류가 발생했습니다.
+connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 82, in connect_signals
+    self.camera_manager.frame_updated.connect(self.updaters.update_frame)
+TypeError: connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+2025-03-06 10:45:24,310 - ui.error_handling - ERROR - 오류 발생: 시그널 연결 중 오류가 발생했습니다. - connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 82, in connect_signals
+    self.camera_manager.frame_updated.connect(self.updaters.update_frame)
+TypeError: connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+2025-03-06 10:45:25,071 - ui.main_window.main_window - INFO - 메인 윈도우 초기화 완료
+2025-03-06 10:45:58,683 - ui.main_window.main_window - INFO - 프로그램 종료
+2025-03-06 10:46:16,200 - root - INFO - 로깅 시스템 초기화 완료
+2025-03-06 10:46:16,200 - root - INFO - 객체 탐지 시스템 v1.0.0 시작
+2025-03-06 10:46:16,516 - core.camera.camera_manager - INFO - 카메라 발견: ID 0 - Logitech C920
+2025-03-06 10:46:17,225 - core.camera.camera_manager - INFO - 카메라 발견: ID 2 - Logitech StreamCam
+2025-03-06 10:46:17,395 - core.camera.camera_manager - INFO - 사용 가능한 카메라: {'Logitech C920': 0, 'Logitech StreamCam': 2}
+2025-03-06 10:46:17,395 - core.camera.camera_manager - INFO - 카메라 매니저 초기화 완료
+2025-03-06 10:46:17,396 - detection.detector_manager - INFO - YOLOv8 지원 활성화됨
+2025-03-06 10:46:17,396 - detection.detector_manager - INFO - 탐지기 매니저 초기화 완료
+2025-03-06 10:46:17,439 - ui.main_window.main_window_init - INFO - 메인 윈도우 UI 초기화 완료
+2025-03-06 10:46:17,439 - ui.main_window.main_window_handlers - ERROR - 시그널 연결 중 오류: 'NoneType' object has no attribute 'refreshCameraButton'
+2025-03-06 10:46:17,440 - ui.error_handling - ERROR - 시그널 연결 중 오류가 발생했습니다.
+'NoneType' object has no attribute 'refreshCameraButton'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 46, in connect_signals
+    self.ui.refreshCameraButton.clicked.connect(self.on_refresh_cameras)
+AttributeError: 'NoneType' object has no attribute 'refreshCameraButton'
+
+2025-03-06 10:46:17,446 - ui.error_handling - ERROR - 오류 발생: 시그널 연결 중 오류가 발생했습니다. - 'NoneType' object has no attribute 'refreshCameraButton'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 46, in connect_signals
+    self.ui.refreshCameraButton.clicked.connect(self.on_refresh_cameras)
+AttributeError: 'NoneType' object has no attribute 'refreshCameraButton'
+
+2025-03-06 10:46:19,896 - ui.error_handling - ERROR - 시그널 연결 중 오류가 발생했습니다.
+connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 82, in connect_signals
+    self.camera_manager.frame_updated.connect(self.updaters.update_frame)
+TypeError: connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+2025-03-06 10:46:19,896 - ui.error_handling - ERROR - 오류 발생: 시그널 연결 중 오류가 발생했습니다. - connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 82, in connect_signals
+    self.camera_manager.frame_updated.connect(self.updaters.update_frame)
+TypeError: connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+2025-03-06 10:46:20,369 - ui.main_window.main_window - INFO - 메인 윈도우 초기화 완료
+2025-03-06 10:46:31,975 - ui.main_window.main_window - INFO - 프로그램 종료
+2025-03-06 10:46:41,271 - root - INFO - 로깅 시스템 초기화 완료
+2025-03-06 10:46:41,271 - root - INFO - 객체 탐지 시스템 v1.0.0 시작
+2025-03-06 10:46:41,596 - core.camera.camera_manager - INFO - 카메라 발견: ID 0 - Logitech C920
+2025-03-06 10:46:42,297 - core.camera.camera_manager - INFO - 카메라 발견: ID 2 - Logitech StreamCam
+2025-03-06 10:46:42,465 - core.camera.camera_manager - INFO - 사용 가능한 카메라: {'Logitech C920': 0, 'Logitech StreamCam': 2}
+2025-03-06 10:46:42,466 - core.camera.camera_manager - INFO - 카메라 매니저 초기화 완료
+2025-03-06 10:46:42,467 - detection.detector_manager - INFO - YOLOv8 지원 활성화됨
+2025-03-06 10:46:42,467 - detection.detector_manager - INFO - 탐지기 매니저 초기화 완료
+2025-03-06 10:46:42,513 - ui.main_window.main_window_init - INFO - 메인 윈도우 UI 초기화 완료
+2025-03-06 10:46:42,513 - ui.main_window.main_window_handlers - ERROR - 시그널 연결 중 오류: 'NoneType' object has no attribute 'refreshCameraButton'
+2025-03-06 10:46:42,514 - ui.error_handling - ERROR - 시그널 연결 중 오류가 발생했습니다.
+'NoneType' object has no attribute 'refreshCameraButton'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 46, in connect_signals
+    self.ui.refreshCameraButton.clicked.connect(self.on_refresh_cameras)
+AttributeError: 'NoneType' object has no attribute 'refreshCameraButton'
+
+2025-03-06 10:46:42,519 - ui.error_handling - ERROR - 오류 발생: 시그널 연결 중 오류가 발생했습니다. - 'NoneType' object has no attribute 'refreshCameraButton'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 46, in connect_signals
+    self.ui.refreshCameraButton.clicked.connect(self.on_refresh_cameras)
+AttributeError: 'NoneType' object has no attribute 'refreshCameraButton'
+
+2025-03-06 10:46:43,955 - ui.error_handling - ERROR - 시그널 연결 중 오류가 발생했습니다.
+connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 82, in connect_signals
+    self.camera_manager.frame_updated.connect(self.updaters.update_frame)
+TypeError: connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+2025-03-06 10:46:43,956 - ui.error_handling - ERROR - 오류 발생: 시그널 연결 중 오류가 발생했습니다. - connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 82, in connect_signals
+    self.camera_manager.frame_updated.connect(self.updaters.update_frame)
+TypeError: connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+2025-03-06 10:46:44,435 - ui.main_window.main_window - INFO - 메인 윈도우 초기화 완료
+2025-03-06 10:51:54,365 - root - INFO - 로깅 시스템 초기화 완료
+2025-03-06 10:51:54,366 - root - INFO - 객체 탐지 시스템 v1.0.0 시작
+2025-03-06 10:51:54,700 - core.camera.camera_manager - INFO - 카메라 발견: ID 0 - Logitech C920
+2025-03-06 10:51:55,445 - core.camera.camera_manager - INFO - 카메라 발견: ID 2 - Logitech StreamCam
+2025-03-06 10:51:55,611 - core.camera.camera_manager - INFO - 사용 가능한 카메라: {'Logitech C920': 0, 'Logitech StreamCam': 2}
+2025-03-06 10:51:55,611 - core.camera.camera_manager - INFO - 카메라 매니저 초기화 완료
+2025-03-06 10:51:55,613 - detection.detector_manager - INFO - YOLOv8 지원 활성화됨
+2025-03-06 10:51:55,613 - detection.detector_manager - INFO - 탐지기 매니저 초기화 완료
+2025-03-06 10:51:55,660 - ui.main_window.main_window_init - ERROR - UI 초기화 오류: 'MainWindow' object has no attribute 'contentSplitter'
+2025-03-06 10:51:55,660 - ui.main_window.main_window_handlers - ERROR - 시그널 연결 중 오류: 'NoneType' object has no attribute 'refreshCameraButton'
+2025-03-06 10:51:55,660 - ui.error_handling - ERROR - 시그널 연결 중 오류가 발생했습니다.
+'NoneType' object has no attribute 'refreshCameraButton'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 46, in connect_signals
+    self.ui.refreshCameraButton.clicked.connect(self.on_refresh_cameras)
+AttributeError: 'NoneType' object has no attribute 'refreshCameraButton'
+
+2025-03-06 10:51:55,666 - ui.error_handling - ERROR - 오류 발생: 시그널 연결 중 오류가 발생했습니다. - 'NoneType' object has no attribute 'refreshCameraButton'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 46, in connect_signals
+    self.ui.refreshCameraButton.clicked.connect(self.on_refresh_cameras)
+AttributeError: 'NoneType' object has no attribute 'refreshCameraButton'
+
+2025-03-06 10:51:57,309 - ui.error_handling - ERROR - 시그널 연결 중 오류가 발생했습니다.
+connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 82, in connect_signals
+    self.camera_manager.frame_updated.connect(self.updaters.update_frame)
+TypeError: connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+2025-03-06 10:51:57,309 - ui.error_handling - ERROR - 오류 발생: 시그널 연결 중 오류가 발생했습니다. - connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 82, in connect_signals
+    self.camera_manager.frame_updated.connect(self.updaters.update_frame)
+TypeError: connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+2025-03-06 10:51:57,890 - ui.main_window.main_window - INFO - 메인 윈도우 초기화 완료
+2025-03-06 10:52:20,873 - ui.main_window.main_window - ERROR - 프로그램 종료 중 오류: 'MainWindowInit' object has no attribute 'save_path'
+2025-03-06 10:53:18,737 - root - INFO - 로깅 시스템 초기화 완료
+2025-03-06 10:53:18,737 - root - INFO - 객체 탐지 시스템 v1.0.0 시작
+2025-03-06 10:53:19,073 - core.camera.camera_manager - INFO - 카메라 발견: ID 0 - Logitech C920
+2025-03-06 10:53:19,774 - core.camera.camera_manager - INFO - 카메라 발견: ID 2 - Logitech StreamCam
+2025-03-06 10:53:19,942 - core.camera.camera_manager - INFO - 사용 가능한 카메라: {'Logitech C920': 0, 'Logitech StreamCam': 2}
+2025-03-06 10:53:19,942 - core.camera.camera_manager - INFO - 카메라 매니저 초기화 완료
+2025-03-06 10:53:19,943 - detection.detector_manager - INFO - YOLOv8 지원 활성화됨
+2025-03-06 10:53:19,943 - detection.detector_manager - INFO - 탐지기 매니저 초기화 완료
+2025-03-06 10:53:19,987 - ui.main_window.main_window_init - ERROR - UI 초기화 오류: 'MainWindow' object has no attribute 'contentSplitter'
+2025-03-06 10:53:19,988 - ui.main_window.main_window_handlers - ERROR - 시그널 연결 중 오류: 'NoneType' object has no attribute 'refreshCameraButton'
+2025-03-06 10:53:19,988 - ui.error_handling - ERROR - 시그널 연결 중 오류가 발생했습니다.
+'NoneType' object has no attribute 'refreshCameraButton'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 46, in connect_signals
+    self.ui.refreshCameraButton.clicked.connect(self.on_refresh_cameras)
+AttributeError: 'NoneType' object has no attribute 'refreshCameraButton'
+
+2025-03-06 10:53:19,993 - ui.error_handling - ERROR - 오류 발생: 시그널 연결 중 오류가 발생했습니다. - 'NoneType' object has no attribute 'refreshCameraButton'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 46, in connect_signals
+    self.ui.refreshCameraButton.clicked.connect(self.on_refresh_cameras)
+AttributeError: 'NoneType' object has no attribute 'refreshCameraButton'
+
+2025-03-06 11:02:36,111 - root - INFO - 로깅 시스템 초기화 완료
+2025-03-06 11:02:36,111 - root - INFO - 객체 탐지 시스템 v1.0.0 시작
+2025-03-06 11:02:36,444 - core.camera.camera_manager - INFO - 카메라 발견: ID 0 - Logitech C920
+2025-03-06 11:02:37,190 - core.camera.camera_manager - INFO - 카메라 발견: ID 2 - Logitech StreamCam
+2025-03-06 11:02:37,356 - core.camera.camera_manager - INFO - 사용 가능한 카메라: {'Logitech C920': 0, 'Logitech StreamCam': 2}
+2025-03-06 11:02:37,356 - core.camera.camera_manager - INFO - 카메라 매니저 초기화 완료
+2025-03-06 11:02:37,358 - detection.detector_manager - INFO - YOLOv8 지원 활성화됨
+2025-03-06 11:02:37,358 - detection.detector_manager - INFO - 탐지기 매니저 초기화 완료
+2025-03-06 11:02:37,405 - ui.main_window.main_window_init - ERROR - UI 초기화 오류: 'MainWindow' object has no attribute 'contentSplitter'
+2025-03-06 11:02:37,405 - ui.main_window.main_window_handlers - ERROR - 시그널 연결 중 오류: 'NoneType' object has no attribute 'refreshCameraButton'
+2025-03-06 11:02:37,406 - ui.error_handling - ERROR - 시그널 연결 중 오류가 발생했습니다.
+'NoneType' object has no attribute 'refreshCameraButton'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 46, in connect_signals
+    self.ui.refreshCameraButton.clicked.connect(self.on_refresh_cameras)
+AttributeError: 'NoneType' object has no attribute 'refreshCameraButton'
+
+2025-03-06 11:02:37,412 - ui.error_handling - ERROR - 오류 발생: 시그널 연결 중 오류가 발생했습니다. - 'NoneType' object has no attribute 'refreshCameraButton'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 46, in connect_signals
+    self.ui.refreshCameraButton.clicked.connect(self.on_refresh_cameras)
+AttributeError: 'NoneType' object has no attribute 'refreshCameraButton'
+
+2025-03-06 11:02:38,605 - ui.error_handling - ERROR - 시그널 연결 중 오류가 발생했습니다.
+connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 82, in connect_signals
+    self.camera_manager.frame_updated.connect(self.updaters.update_frame)
+TypeError: connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+2025-03-06 11:02:38,605 - ui.error_handling - ERROR - 오류 발생: 시그널 연결 중 오류가 발생했습니다. - connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 82, in connect_signals
+    self.camera_manager.frame_updated.connect(self.updaters.update_frame)
+TypeError: connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+2025-03-06 11:02:39,083 - ui.main_window.main_window - INFO - 메인 윈도우 초기화 완료
+2025-03-06 11:02:53,866 - ui.main_window.main_window - ERROR - 프로그램 종료 중 오류: 'MainWindowInit' object has no attribute 'save_path'
+2025-03-06 11:04:39,520 - root - INFO - 로깅 시스템 초기화 완료
+2025-03-06 11:04:39,520 - root - INFO - 객체 탐지 시스템 v1.0.0 시작
+2025-03-06 11:04:39,839 - core.camera.camera_manager - INFO - 카메라 발견: ID 0 - Logitech C920
+2025-03-06 11:04:40,541 - core.camera.camera_manager - INFO - 카메라 발견: ID 2 - Logitech StreamCam
+2025-03-06 11:04:40,708 - core.camera.camera_manager - INFO - 사용 가능한 카메라: {'Logitech C920': 0, 'Logitech StreamCam': 2}
+2025-03-06 11:04:40,708 - core.camera.camera_manager - INFO - 카메라 매니저 초기화 완료
+2025-03-06 11:04:40,710 - detection.detector_manager - INFO - YOLOv8 지원 활성화됨
+2025-03-06 11:04:40,710 - detection.detector_manager - INFO - 탐지기 매니저 초기화 완료
+2025-03-06 11:04:40,758 - ui.main_window.main_window_init - ERROR - UI 초기화 오류: 'MainWindow' object has no attribute 'contentSplitter'
+2025-03-06 11:04:40,758 - ui.main_window.main_window_handlers - ERROR - 시그널 연결 중 오류: 'NoneType' object has no attribute 'refreshCameraButton'
+2025-03-06 11:04:40,759 - ui.error_handling - ERROR - 시그널 연결 중 오류가 발생했습니다.
+'NoneType' object has no attribute 'refreshCameraButton'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 46, in connect_signals
+    self.ui.refreshCameraButton.clicked.connect(self.on_refresh_cameras)
+AttributeError: 'NoneType' object has no attribute 'refreshCameraButton'
+
+2025-03-06 11:04:40,767 - ui.error_handling - ERROR - 오류 발생: 시그널 연결 중 오류가 발생했습니다. - 'NoneType' object has no attribute 'refreshCameraButton'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 46, in connect_signals
+    self.ui.refreshCameraButton.clicked.connect(self.on_refresh_cameras)
+AttributeError: 'NoneType' object has no attribute 'refreshCameraButton'
+
+2025-03-06 11:04:42,255 - ui.error_handling - ERROR - 시그널 연결 중 오류가 발생했습니다.
+connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 82, in connect_signals
+    self.camera_manager.frame_updated.connect(self.updaters.update_frame)
+TypeError: connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+2025-03-06 11:04:42,256 - ui.error_handling - ERROR - 오류 발생: 시그널 연결 중 오류가 발생했습니다. - connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 82, in connect_signals
+    self.camera_manager.frame_updated.connect(self.updaters.update_frame)
+TypeError: connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+2025-03-06 11:04:42,724 - ui.main_window.main_window - INFO - 메인 윈도우 초기화 완료
+2025-03-06 11:05:01,242 - ui.main_window.main_window - ERROR - 프로그램 종료 중 오류: 'MainWindowInit' object has no attribute 'save_path'
+2025-03-06 11:12:03,415 - root - INFO - 로깅 시스템 초기화 완료
+2025-03-06 11:12:03,415 - root - INFO - 객체 탐지 시스템 v1.0.0 시작
+2025-03-06 11:12:03,738 - core.camera.camera_manager - INFO - 카메라 발견: ID 0 - Logitech C920
+2025-03-06 11:12:04,485 - core.camera.camera_manager - INFO - 카메라 발견: ID 2 - Logitech StreamCam
+2025-03-06 11:12:04,651 - core.camera.camera_manager - INFO - 사용 가능한 카메라: {'Logitech C920': 0, 'Logitech StreamCam': 2}
+2025-03-06 11:12:04,651 - core.camera.camera_manager - INFO - 카메라 매니저 초기화 완료
+2025-03-06 11:12:04,652 - detection.detector_manager - INFO - YOLOv8 지원 활성화됨
+2025-03-06 11:12:04,652 - detection.detector_manager - INFO - 탐지기 매니저 초기화 완료
+2025-03-06 11:12:04,689 - ui.main_window.main_window_init - ERROR - UI 초기화 오류: 'MainWindow' object has no attribute 'resolutionComboBox'
+2025-03-06 11:12:04,689 - ui.main_window.main_window_handlers - ERROR - 시그널 연결 중 오류: 'NoneType' object has no attribute 'refreshCameraButton'
+2025-03-06 11:12:04,689 - ui.error_handling - ERROR - 시그널 연결 중 오류가 발생했습니다.
+'NoneType' object has no attribute 'refreshCameraButton'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 46, in connect_signals
+    self.ui.refreshCameraButton.clicked.connect(self.on_refresh_cameras)
+AttributeError: 'NoneType' object has no attribute 'refreshCameraButton'
+
+2025-03-06 11:12:04,695 - ui.error_handling - ERROR - 오류 발생: 시그널 연결 중 오류가 발생했습니다. - 'NoneType' object has no attribute 'refreshCameraButton'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 46, in connect_signals
+    self.ui.refreshCameraButton.clicked.connect(self.on_refresh_cameras)
+AttributeError: 'NoneType' object has no attribute 'refreshCameraButton'
+
+2025-03-06 11:12:06,063 - ui.error_handling - ERROR - 시그널 연결 중 오류가 발생했습니다.
+connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 82, in connect_signals
+    self.camera_manager.frame_updated.connect(self.updaters.update_frame)
+TypeError: connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+2025-03-06 11:12:06,064 - ui.error_handling - ERROR - 오류 발생: 시그널 연결 중 오류가 발생했습니다. - connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 82, in connect_signals
+    self.camera_manager.frame_updated.connect(self.updaters.update_frame)
+TypeError: connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+2025-03-06 11:12:06,507 - ui.main_window.main_window - INFO - 메인 윈도우 초기화 완료
+2025-03-06 11:12:10,593 - ui.main_window.main_window - ERROR - 프로그램 종료 중 오류: 'MainWindowInit' object has no attribute 'save_path'
+2025-03-06 11:16:39,116 - root - INFO - 로깅 시스템 초기화 완료
+2025-03-06 11:16:39,116 - root - INFO - 객체 탐지 시스템 v1.0.0 시작
+2025-03-06 11:16:39,441 - core.camera.camera_manager - INFO - 카메라 발견: ID 0 - Logitech C920
+2025-03-06 11:16:40,144 - core.camera.camera_manager - INFO - 카메라 발견: ID 2 - Logitech StreamCam
+2025-03-06 11:16:40,311 - core.camera.camera_manager - INFO - 사용 가능한 카메라: {'Logitech C920': 0, 'Logitech StreamCam': 2}
+2025-03-06 11:16:40,312 - core.camera.camera_manager - INFO - 카메라 매니저 초기화 완료
+2025-03-06 11:16:40,313 - detection.detector_manager - INFO - YOLOv8 지원 활성화됨
+2025-03-06 11:16:40,313 - detection.detector_manager - INFO - 탐지기 매니저 초기화 완료
+2025-03-06 11:16:40,353 - ui.main_window.main_window_init - ERROR - UI 초기화 오류: 'MainWindow' object has no attribute 'resolutionComboBox'
+2025-03-06 11:16:40,353 - ui.main_window.main_window_handlers - ERROR - 시그널 연결 중 오류: 'NoneType' object has no attribute 'refreshCameraButton'
+2025-03-06 11:16:40,354 - ui.error_handling - ERROR - 시그널 연결 중 오류가 발생했습니다.
+'NoneType' object has no attribute 'refreshCameraButton'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 46, in connect_signals
+    self.ui.refreshCameraButton.clicked.connect(self.on_refresh_cameras)
+AttributeError: 'NoneType' object has no attribute 'refreshCameraButton'
+
+2025-03-06 11:16:40,360 - ui.error_handling - ERROR - 오류 발생: 시그널 연결 중 오류가 발생했습니다. - 'NoneType' object has no attribute 'refreshCameraButton'
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_handlers.py", line 46, in connect_signals
+    self.ui.refreshCameraButton.clicked.connect(self.on_refresh_cameras)
+AttributeError: 'NoneType' object has no attribute 'refreshCameraButton'
+
+2025-03-06 11:16:41,461 - ui.error_handling - ERROR - 시그널 연결 중 오류가 발생했습니다.
+connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 82, in connect_signals
+    self.camera_manager.frame_updated.connect(self.updaters.update_frame)
+TypeError: connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+2025-03-06 11:16:41,461 - ui.error_handling - ERROR - 오류 발생: 시그널 연결 중 오류가 발생했습니다. - connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 82, in connect_signals
+    self.camera_manager.frame_updated.connect(self.updaters.update_frame)
+TypeError: connect() failed between CameraManager.frame_updated[object] and update_frame()
+
+2025-03-06 11:16:41,893 - ui.main_window.main_window - INFO - 메인 윈도우 초기화 완료
+2025-03-06 11:16:45,027 - ui.main_window.main_window - ERROR - 프로그램 종료 중 오류: 'MainWindowInit' object has no attribute 'save_path'
