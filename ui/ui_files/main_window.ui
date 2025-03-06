@@ -20,145 +20,464 @@
    <string>객체 탐지 시스템</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QHBoxLayout" name="horizontalLayout">
-    <property name="spacing">
-     <number>5</number>
-    </property>
-    <property name="leftMargin">
-     <number>5</number>
-    </property>
-    <property name="topMargin">
-     <number>5</number>
-    </property>
-    <property name="rightMargin">
-     <number>5</number>
-    </property>
-    <property name="bottomMargin">
-     <number>5</number>
-    </property>
+   <layout class="QVBoxLayout" name="verticalLayout">
     <item>
-     <widget class="QFrame" name="videoContainer">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-        <horstretch>7</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
+     <widget class="QTabWidget" name="settingsTabWidget">
+      <property name="maximumSize">
+       <size>
+        <width>16777215</width>
+        <height>200</height>
+       </size>
       </property>
-      <property name="frameShape">
-       <enum>QFrame::StyledPanel</enum>
+      <property name="currentIndex">
+       <number>0</number>
       </property>
-      <property name="frameShadow">
-       <enum>QFrame::Raised</enum>
-      </property>
-      <layout class="QVBoxLayout" name="verticalLayout_2">
-       <property name="spacing">
-        <number>0</number>
-       </property>
-       <property name="leftMargin">
-        <number>0</number>
-       </property>
-       <property name="topMargin">
-        <number>0</number>
-       </property>
-       <property name="rightMargin">
-        <number>0</number>
-       </property>
-       <property name="bottomMargin">
-        <number>0</number>
-       </property>
-       <item>
-        <widget class="QLabel" name="videoFrame">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="text">
-          <string>카메라가 연결되지 않았습니다.</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignCenter</set>
-         </property>
-        </widget>
-       </item>
-      </layout>
+      <widget class="QWidget" name="cameraTab">
+       <attribute name="title">
+        <string>카메라 설정</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_2">
+        <item>
+         <widget class="QFrame" name="cameraFrame">
+          <property name="frameShape">
+           <enum>QFrame::StyledPanel</enum>
+          </property>
+          <property name="frameShadow">
+           <enum>QFrame::Raised</enum>
+          </property>
+          <layout class="QGridLayout" name="gridLayout">
+           <item row="0" column="0">
+            <widget class="QLabel" name="label">
+             <property name="text">
+              <string>카메라:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QComboBox" name="cameraComboBox"/>
+           </item>
+           <item row="0" column="2">
+            <widget class="QPushButton" name="refreshCameraButton">
+             <property name="text">
+              <string>새로 고침</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="label_2">
+             <property name="text">
+              <string>해상도:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QComboBox" name="resolutionComboBox"/>
+           </item>
+           <item row="1" column="2">
+            <widget class="QLabel" name="label_3">
+             <property name="text">
+              <string>FPS:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="3">
+            <widget class="QSpinBox" name="fpsSpinBox">
+             <property name="minimum">
+              <number>1</number>
+             </property>
+             <property name="maximum">
+              <number>60</number>
+             </property>
+             <property name="value">
+              <number>30</number>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0" colspan="4">
+            <layout class="QHBoxLayout" name="horizontalLayout">
+             <item>
+              <widget class="QPushButton" name="connectButton">
+               <property name="text">
+                <string>연결</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="disconnectButton">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="text">
+                <string>연결 해제</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="horizontalSpacer">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>40</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+             <item>
+              <widget class="QPushButton" name="cameraSettingsButton">
+               <property name="text">
+                <string>고급 설정...</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="detectionTab">
+       <attribute name="title">
+        <string>탐지 모델 설정</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_3">
+        <item>
+         <widget class="QGroupBox" name="detectionGroupBox">
+          <property name="title">
+           <string>객체 탐지 설정</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_2">
+           <item row="0" column="0" colspan="2">
+            <widget class="QCheckBox" name="detectionCheckBox">
+             <property name="text">
+              <string>객체 탐지 활성화</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="label_4">
+             <property name="text">
+              <string>탐지 모드:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QComboBox" name="detectionModeComboBox">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <item>
+              <property name="text">
+               <string>OpenCV-HOG</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>YOLO</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item row="2" column="0" colspan="4">
+            <widget class="QStackedWidget" name="detectionStackedWidget">
+             <property name="currentIndex">
+              <number>1</number>
+             </property>
+             <widget class="QWidget" name="hogPage">
+              <layout class="QVBoxLayout" name="verticalLayout_4"/>
+             </widget>
+             <widget class="QWidget" name="yoloPage">
+              <layout class="QVBoxLayout" name="verticalLayout_5">
+               <item>
+                <layout class="QGridLayout" name="gridLayout_3">
+                 <item row="0" column="0">
+                  <widget class="QLabel" name="label_5">
+                   <property name="text">
+                    <string>YOLO 버전:</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="0" column="1">
+                  <widget class="QComboBox" name="yoloVersionComboBox"/>
+                 </item>
+                 <item row="0" column="2">
+                  <widget class="QLabel" name="label_6">
+                   <property name="text">
+                    <string>모델:</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="0" column="3">
+                  <widget class="QComboBox" name="yoloModelComboBox"/>
+                 </item>
+                 <item row="1" column="0">
+                  <widget class="QLabel" name="label_7">
+                   <property name="text">
+                    <string>신뢰도 임계값:</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="1" colspan="2">
+                  <widget class="QSlider" name="confidenceSlider">
+                   <property name="maximum">
+                    <number>99</number>
+                   </property>
+                   <property name="value">
+                    <number>50</number>
+                   </property>
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                   <property name="tickPosition">
+                    <enum>QSlider::TicksBelow</enum>
+                   </property>
+                   <property name="tickInterval">
+                    <number>10</number>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="3">
+                  <widget class="QLabel" name="confidenceValueLabel">
+                   <property name="text">
+                    <string>0.50</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+              </layout>
+             </widget>
+            </widget>
+           </item>
+           <item row="3" column="0" colspan="4">
+            <layout class="QHBoxLayout" name="horizontalLayout_2">
+             <item>
+              <widget class="QPushButton" name="applyDetectorButton">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="text">
+                <string>설정 적용</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="horizontalSpacer_2">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>40</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+             <item>
+              <widget class="QLabel" name="currentDetectorInfoLabel">
+               <property name="text">
+                <string>탐지기가 설정되지 않았습니다.</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="systemTab">
+       <attribute name="title">
+        <string>시스템 설정</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_7">
+        <item>
+         <widget class="QGroupBox" name="systemGroupBox">
+          <property name="title">
+           <string>시스템 옵션</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_4">
+           <item row="0" column="0">
+            <widget class="QLabel" name="label_8">
+             <property name="text">
+              <string>저장 경로:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QLineEdit" name="savePathEdit"/>
+           </item>
+           <item row="0" column="2">
+            <widget class="QPushButton" name="browseSavePathButton">
+             <property name="text">
+              <string>찾아보기...</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="label_9">
+             <property name="text">
+              <string>기록 보관 일수:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QSpinBox" name="logRetentionSpinBox">
+             <property name="minimum">
+              <number>1</number>
+             </property>
+             <property name="maximum">
+              <number>365</number>
+             </property>
+             <property name="value">
+              <number>30</number>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0" colspan="3">
+            <widget class="QCheckBox" name="startMinimizedCheckBox">
+             <property name="text">
+              <string>프로그램 시작 시 최소화</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0" colspan="3">
+            <widget class="QCheckBox" name="autoStartCheckBox">
+             <property name="text">
+              <string>Windows 시작 시 자동 실행</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0" colspan="3">
+            <widget class="QCheckBox" name="autoConnectCameraCheckBox">
+             <property name="text">
+              <string>프로그램 시작 시 카메라 자동 연결</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="0" colspan="3">
+            <widget class="QPushButton" name="saveSettingsButton">
+             <property name="text">
+              <string>설정 저장</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
      </widget>
     </item>
     <item>
-     <layout class="QVBoxLayout" name="verticalLayout">
-      <property name="spacing">
-       <number>5</number>
+     <widget class="QSplitter" name="contentSplitter">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
       </property>
-      <property name="leftMargin">
-       <number>0</number>
-      </property>
-      <property name="topMargin">
-       <number>0</number>
-      </property>
-      <property name="rightMargin">
-       <number>0</number>
-      </property>
-      <property name="bottomMargin">
-       <number>0</number>
-      </property>
-      <item>
-       <widget class="QLabel" name="detectorInfoLabel">
-        <property name="minimumSize">
-         <size>
-          <width>298</width>
-          <height>120</height>
-         </size>
-        </property>
-        <property name="frameShape">
-         <enum>QFrame::StyledPanel</enum>
-        </property>
-        <property name="frameShadow">
-         <enum>QFrame::Sunken</enum>
-        </property>
-        <property name="text">
-         <string>탐지기가 설정되지 않았습니다.</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-        <property name="wordWrap">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QLabel" name="resultsTextLabel">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="minimumSize">
-         <size>
-          <width>298</width>
-          <height>150</height>
-         </size>
-        </property>
-        <property name="frameShape">
-         <enum>QFrame::StyledPanel</enum>
-        </property>
-        <property name="frameShadow">
-         <enum>QFrame::Sunken</enum>
-        </property>
-        <property name="text">
-         <string>탐지된 객체가 없습니다.</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
-        </property>
-        <property name="wordWrap">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-     </layout>
+      <widget class="QLabel" name="videoFrame">
+       <property name="minimumSize">
+        <size>
+         <width>640</width>
+         <height>480</height>
+        </size>
+       </property>
+       <property name="frameShape">
+        <enum>QFrame::StyledPanel</enum>
+       </property>
+       <property name="frameShadow">
+        <enum>QFrame::Sunken</enum>
+       </property>
+       <property name="text">
+        <string>카메라가 연결되지 않았습니다.</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+      <widget class="QWidget" name="resultsPanel" native="true">
+       <layout class="QVBoxLayout" name="verticalLayout_6">
+        <item>
+         <widget class="QLabel" name="resultsTitleLabel">
+          <property name="font">
+           <font>
+            <pointsize>10</pointsize>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string>탐지 결과</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="resultsTextLabel">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="frameShape">
+           <enum>QFrame::StyledPanel</enum>
+          </property>
+          <property name="frameShadow">
+           <enum>QFrame::Sunken</enum>
+          </property>
+          <property name="text">
+           <string>탐지된 객체가 없습니다.</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <item>
+           <widget class="QPushButton" name="saveResultsButton">
+            <property name="text">
+             <string>결과 저장</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="clearResultsButton">
+            <property name="text">
+             <string>결과 지우기</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_3">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="screenshotButton">
+            <property name="text">
+             <string>스크린샷</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+     </widget>
     </item>
    </layout>
   </widget>
@@ -168,54 +487,59 @@
      <x>0</x>
      <y>0</y>
      <width>1280</width>
-     <height>28</height>
+     <height>22</height>
     </rect>
    </property>
-   <widget class="QMenu" name="menuFile">
+   <widget class="QMenu" name="menu_File">
     <property name="title">
-     <string>파일</string>
+     <string>파일(&amp;F)</string>
     </property>
-    <addaction name="actionExit"/>
+    <addaction name="action_Open"/>
+    <addaction name="action_Save"/>
+    <addaction name="separator"/>
+    <addaction name="action_Exit"/>
    </widget>
-   <widget class="QMenu" name="menuConnection">
+   <widget class="QMenu" name="menu_Camera">
     <property name="title">
-     <string>연결</string>
+     <string>카메라(&amp;C)</string>
     </property>
-    <addaction name="actionConnectCamera"/>
-    <addaction name="actionDisconnectCamera"/>
+    <addaction name="action_Connect"/>
+    <addaction name="action_Disconnect"/>
+    <addaction name="separator"/>
+    <addaction name="action_CameraSettings"/>
    </widget>
-   <widget class="QMenu" name="menuSettings">
+   <widget class="QMenu" name="menu_Detection">
     <property name="title">
-     <string>설정</string>
+     <string>탐지(&amp;D)</string>
     </property>
-    <widget class="QMenu" name="menuDetection">
-     <property name="title">
-      <string>탐지 설정</string>
-     </property>
-     <addaction name="actionEnableDetection"/>
-     <addaction name="actionDetectionSettings"/>
-     <addaction name="actionObjectSelection"/>
-    </widget>
-    <addaction name="menuDetection"/>
+    <addaction name="action_StartDetection"/>
+    <addaction name="action_StopDetection"/>
+    <addaction name="separator"/>
+    <addaction name="action_DetectionSettings"/>
    </widget>
-   <widget class="QMenu" name="menuHelp">
+   <widget class="QMenu" name="menu_View">
     <property name="title">
-     <string>도움말</string>
+     <string>보기(&amp;V)</string>
     </property>
-    <addaction name="actionAbout"/>
+    <addaction name="action_Fullscreen"/>
+    <addaction name="action_ShowDashboard"/>
    </widget>
-   <addaction name="menuFile"/>
-   <addaction name="menuConnection"/>
-   <addaction name="menuSettings"/>
-   <addaction name="menuHelp"/>
+   <widget class="QMenu" name="menu_Help">
+    <property name="title">
+     <string>도움말(&amp;H)</string>
+    </property>
+    <addaction name="action_About"/>
+   </widget>
+   <addaction name="menu_File"/>
+   <addaction name="menu_Camera"/>
+   <addaction name="menu_Detection"/>
+   <addaction name="menu_View"/>
+   <addaction name="menu_Help"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QToolBar" name="toolBar">
    <property name="windowTitle">
     <string>toolBar</string>
-   </property>
-   <property name="movable">
-    <bool>false</bool>
    </property>
    <attribute name="toolBarArea">
     <enum>TopToolBarArea</enum>
@@ -223,41 +547,63 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="actionConnectCamera"/>
-   <addaction name="actionDisconnectCamera"/>
+   <addaction name="action_Connect"/>
+   <addaction name="action_Disconnect"/>
    <addaction name="separator"/>
-   <addaction name="actionEnableDetection"/>
-   <addaction name="actionDetectionSettings"/>
-   <addaction name="actionObjectSelection"/>
+   <addaction name="action_StartDetection"/>
+   <addaction name="action_StopDetection"/>
+   <addaction name="separator"/>
+   <addaction name="action_Screenshot"/>
   </widget>
-  <action name="actionExit">
+  <action name="action_Open">
    <property name="text">
-    <string>종료</string>
+    <string>열기(&amp;O)...</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+Q</string>
+    <string>Ctrl+O</string>
    </property>
   </action>
-  <action name="actionConnectCamera">
+  <action name="action_Save">
    <property name="text">
-    <string>카메라 연결</string>
+    <string>저장(&amp;S)...</string>
    </property>
-   <property name="toolTip">
-    <string>카메라 연결</string>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
    </property>
   </action>
-  <action name="actionDisconnectCamera">
+  <action name="action_Exit">
+   <property name="text">
+    <string>종료(&amp;X)</string>
+   </property>
+   <property name="shortcut">
+    <string>Alt+F4</string>
+   </property>
+  </action>
+  <action name="action_Connect">
+   <property name="text">
+    <string>카메라 연결(&amp;C)</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+C</string>
+   </property>
+  </action>
+  <action name="action_Disconnect">
    <property name="enabled">
     <bool>false</bool>
    </property>
    <property name="text">
-    <string>카메라 연결 해제</string>
+    <string>연결 해제(&amp;D)</string>
    </property>
-   <property name="toolTip">
-    <string>카메라 연결 해제</string>
+   <property name="shortcut">
+    <string>Ctrl+D</string>
    </property>
   </action>
-  <action name="actionEnableDetection">
+  <action name="action_CameraSettings">
+   <property name="text">
+    <string>카메라 설정(&amp;S)...</string>
+   </property>
+  </action>
+  <action name="action_StartDetection">
    <property name="checkable">
     <bool>true</bool>
    </property>
@@ -265,37 +611,58 @@
     <bool>false</bool>
    </property>
    <property name="text">
-    <string>사람 탐지 활성화</string>
+    <string>탐지 시작(&amp;S)</string>
    </property>
-   <property name="toolTip">
-    <string>사람 탐지 활성화</string>
+   <property name="shortcut">
+    <string>F5</string>
    </property>
   </action>
-  <action name="actionDetectionSettings">
+  <action name="action_StopDetection">
    <property name="enabled">
     <bool>false</bool>
    </property>
    <property name="text">
-    <string>탐지 설정</string>
+    <string>탐지 중지(&amp;T)</string>
    </property>
-   <property name="toolTip">
-    <string>탐지 설정 변경</string>
-   </property>
-  </action>
-  <action name="actionAbout">
-   <property name="text">
-    <string>프로그램 정보</string>
+   <property name="shortcut">
+    <string>F6</string>
    </property>
   </action>
-  <action name="actionObjectSelection">
-   <property name="enabled">
-    <bool>false</bool>
+  <action name="action_DetectionSettings">
+   <property name="text">
+    <string>탐지 설정(&amp;O)...</string>
+   </property>
+  </action>
+  <action name="action_Fullscreen">
+   <property name="checkable">
+    <bool>true</bool>
    </property>
    <property name="text">
-    <string>객체 선택</string>
+    <string>전체 화면(&amp;F)</string>
    </property>
-   <property name="toolTip">
-    <string>탐지할 객체 선택</string>
+   <property name="shortcut">
+    <string>F11</string>
+   </property>
+  </action>
+  <action name="action_ShowDashboard">
+   <property name="text">
+    <string>대시보드 표시(&amp;D)</string>
+   </property>
+   <property name="shortcut">
+    <string>F8</string>
+   </property>
+  </action>
+  <action name="action_About">
+   <property name="text">
+    <string>정보(&amp;A)...</string>
+   </property>
+  </action>
+  <action name="action_Screenshot">
+   <property name="text">
+    <string>스크린샷(&amp;S)</string>
+   </property>
+   <property name="shortcut">
+    <string>F12</string>
    </property>
   </action>
  </widget>
