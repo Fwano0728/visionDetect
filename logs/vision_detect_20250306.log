@@ -417,3 +417,68 @@ TypeError: connect() failed between CameraManager.frame_updated[object] and upda
 
 2025-03-06 11:16:41,893 - ui.main_window.main_window - INFO - 메인 윈도우 초기화 완료
 2025-03-06 11:16:45,027 - ui.main_window.main_window - ERROR - 프로그램 종료 중 오류: 'MainWindowInit' object has no attribute 'save_path'
+2025-03-06 11:31:17,031 - root - INFO - 로깅 시스템 초기화 완료
+2025-03-06 11:31:17,031 - root - INFO - 객체 탐지 시스템 v1.0.0 시작
+2025-03-06 11:31:17,345 - core.camera.camera_manager - INFO - 카메라 발견: ID 0 - Logitech C920
+2025-03-06 11:31:18,047 - core.camera.camera_manager - INFO - 카메라 발견: ID 2 - Logitech StreamCam
+2025-03-06 11:31:18,215 - core.camera.camera_manager - INFO - 사용 가능한 카메라: {'Logitech C920': 0, 'Logitech StreamCam': 2}
+2025-03-06 11:31:18,215 - core.camera.camera_manager - INFO - 카메라 매니저 초기화 완료
+2025-03-06 11:31:18,217 - detection.detector_manager - INFO - YOLOv8 지원 활성화됨
+2025-03-06 11:31:18,217 - detection.detector_manager - INFO - 탐지기 매니저 초기화 완료
+2025-03-06 11:31:18,217 - root - CRITICAL - 프로그램 초기화 중 심각한 오류 발생: MainWindow.__init__() takes 1 positional argument but 3 were given
+2025-03-06 11:31:18,218 - root - CRITICAL - Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/main.py", line 196, in main
+    main_window = MainWindow(camera_manager, detector_manager)
+TypeError: MainWindow.__init__() takes 1 positional argument but 3 were given
+
+2025-03-06 11:31:18,236 - ui.error_handling - ERROR - 초기화 오류: 프로그램을 초기화하는 중 심각한 오류가 발생했습니다. - MainWindow.__init__() takes 1 positional argument but 3 were given
+2025-03-06 11:31:23,009 - root - INFO - 로깅 시스템 초기화 완료
+2025-03-06 11:31:23,010 - root - INFO - 객체 탐지 시스템 v1.0.0 시작
+2025-03-06 11:31:23,331 - core.camera.camera_manager - INFO - 카메라 발견: ID 0 - Logitech C920
+2025-03-06 11:31:24,078 - core.camera.camera_manager - INFO - 카메라 발견: ID 2 - Logitech StreamCam
+2025-03-06 11:31:24,243 - core.camera.camera_manager - INFO - 사용 가능한 카메라: {'Logitech C920': 0, 'Logitech StreamCam': 2}
+2025-03-06 11:31:24,244 - core.camera.camera_manager - INFO - 카메라 매니저 초기화 완료
+2025-03-06 11:31:24,245 - detection.detector_manager - INFO - YOLOv8 지원 활성화됨
+2025-03-06 11:31:24,245 - detection.detector_manager - INFO - 탐지기 매니저 초기화 완료
+2025-03-06 11:31:24,246 - root - CRITICAL - 프로그램 초기화 중 심각한 오류 발생: MainWindow.__init__() takes 1 positional argument but 3 were given
+2025-03-06 11:31:24,246 - root - CRITICAL - Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/main.py", line 196, in main
+    main_window = MainWindow(camera_manager, detector_manager)
+TypeError: MainWindow.__init__() takes 1 positional argument but 3 were given
+
+2025-03-06 11:31:24,264 - ui.error_handling - ERROR - 초기화 오류: 프로그램을 초기화하는 중 심각한 오류가 발생했습니다. - MainWindow.__init__() takes 1 positional argument but 3 were given
+2025-03-06 11:32:33,299 - root - INFO - 로깅 시스템 초기화 완료
+2025-03-06 11:32:33,299 - root - INFO - 객체 탐지 시스템 v1.0.0 시작
+2025-03-06 11:32:33,623 - core.camera.camera_manager - INFO - 카메라 발견: ID 0 - Logitech C920
+2025-03-06 11:32:34,323 - core.camera.camera_manager - INFO - 카메라 발견: ID 2 - Logitech StreamCam
+2025-03-06 11:32:34,491 - core.camera.camera_manager - INFO - 사용 가능한 카메라: {'Logitech C920': 0, 'Logitech StreamCam': 2}
+2025-03-06 11:32:34,491 - core.camera.camera_manager - INFO - 카메라 매니저 초기화 완료
+2025-03-06 11:32:34,493 - detection.detector_manager - INFO - YOLOv8 지원 활성화됨
+2025-03-06 11:32:34,493 - detection.detector_manager - INFO - 탐지기 매니저 초기화 완료
+2025-03-06 11:32:34,493 - root - CRITICAL - 프로그램 초기화 중 심각한 오류 발생: ErrorHandler() takes no arguments
+2025-03-06 11:32:34,494 - root - CRITICAL - Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/main.py", line 196, in main
+    main_window = MainWindow(camera_manager, detector_manager)
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 40, in __init__
+    self.error_handler = ErrorHandler(self)
+TypeError: ErrorHandler() takes no arguments
+
+2025-03-06 11:32:34,512 - ui.error_handling - ERROR - 초기화 오류: 프로그램을 초기화하는 중 심각한 오류가 발생했습니다. - ErrorHandler() takes no arguments
+2025-03-06 11:33:48,625 - root - INFO - 로깅 시스템 초기화 완료
+2025-03-06 11:33:48,626 - root - INFO - 객체 탐지 시스템 v1.0.0 시작
+2025-03-06 11:33:48,947 - core.camera.camera_manager - INFO - 카메라 발견: ID 0 - Logitech C920
+2025-03-06 11:33:49,693 - core.camera.camera_manager - INFO - 카메라 발견: ID 2 - Logitech StreamCam
+2025-03-06 11:33:49,859 - core.camera.camera_manager - INFO - 사용 가능한 카메라: {'Logitech C920': 0, 'Logitech StreamCam': 2}
+2025-03-06 11:33:49,859 - core.camera.camera_manager - INFO - 카메라 매니저 초기화 완료
+2025-03-06 11:33:49,861 - detection.detector_manager - INFO - YOLOv8 지원 활성화됨
+2025-03-06 11:33:49,861 - detection.detector_manager - INFO - 탐지기 매니저 초기화 완료
+2025-03-06 11:33:49,862 - root - CRITICAL - 프로그램 초기화 중 심각한 오류 발생: UI 파일을 찾을 수 없습니다: /home/hanho/Desktop/visionDetect/ui_files/main_window.ui
+2025-03-06 11:33:49,862 - root - CRITICAL - Traceback (most recent call last):
+  File "/home/hanho/Desktop/visionDetect/main.py", line 196, in main
+    main_window = MainWindow(camera_manager, detector_manager)
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window.py", line 50, in __init__
+    MainWindowInit.init_ui(self)
+  File "/home/hanho/Desktop/visionDetect/ui/main_window/main_window_init.py", line 26, in init_ui
+    raise FileNotFoundError(f"UI 파일을 찾을 수 없습니다: {MAIN_WINDOW_UI}")
+FileNotFoundError: UI 파일을 찾을 수 없습니다: /home/hanho/Desktop/visionDetect/ui_files/main_window.ui
+
