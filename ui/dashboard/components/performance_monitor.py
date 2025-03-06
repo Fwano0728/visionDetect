@@ -1,5 +1,4 @@
-# 카메라 관리 코드
-# !/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """

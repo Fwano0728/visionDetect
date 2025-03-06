@@ -136,6 +136,10 @@ class MainWindow(QMainWindow):
             if self.detector_manager.is_active():
                 self.detector_manager.set_detector(None)
 
+            # 대시보드 창 닫기
+            if hasattr(self.handlers, 'dashboard') and self.handlers.dashboard:
+                self.handlers.dashboard.close()
+
             logger.info("프로그램 종료")
             event.accept()
 

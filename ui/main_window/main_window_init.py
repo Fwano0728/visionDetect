@@ -8,11 +8,9 @@
 import os
 import logging
 from PyQt5.QtWidgets import QMainWindow
-from PyQt5.QtCore import Qt, QSettings
+from PyQt5.QtCore import Qt, QSettings, QSize
 from PyQt5.QtGui import QIcon
-
-# UI 자동 생성 파일 가져오기
-from ui.generated.ui_main_window import Ui_MainWindow
+from PyQt5 import uic
 
 logger = logging.getLogger(__name__)
 
@@ -28,27 +26,50 @@ class MainWindowInit:
             main_window: 메인 윈도우 인스턴스
         """
         self.window = main_window
-        self.ui = Ui_MainWindow()
+        self.ui = None
         self.settings = QSettings("VisionDetect", "ObjectDetection")
 
     def setup_ui(self):
         """UI 초기화"""
-        # UI 설정
-        self.ui.setupUi(self.window)
+        try:
+            # UI 파일 경로
+            ui_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'ui_files', 'main_window.ui')
 
-        # 윈도우 설정
-        self.setup_window()
+            # UI 파일이 없는 경우 오류 표시
+            if not os.path.exists(ui_file):
+                logger.error(f"UI 파일을 찾을 수 없음: {ui_file}")
+                # 기본 빈 UI 설정
+                self.window.setWindowTitle("객체 탐지 시스템")
+                self.window.resize(1280, 800)
+                self.window.statusBar().showMessage("UI 파일을 찾을 수 없습니다.")
+                return
 
-        # 기타 UI 설정
-        self.setup_controls()
+            # UI 파일 직접 로드
+            uic.loadUi(ui_file, self.window)
 
-        # 설정 적용
-        self.load_settings()
+            # UI 참조 저장 (loadUi가 window에 직접 로드하므로 window를 UI로 사용)
+            self.ui = self.window
 
-        # 윈도우 표시 후 추가 설정
-        self.post_show_setup()
+            # 윈도우 설정
+            self.setup_window()
 
-        logger.info("메인 윈도우 UI 초기화 완료")
+            # 기타 UI 설정
+            self.setup_controls()
+
+            # 설정 적용
+            self.load_settings()
+
+            # 윈도우 표시 후 추가 설정
+            self.post_show_setup()
+
+            logger.info("메인 윈도우 UI 초기화 완료")
+
+        except Exception as e:
+            logger.error(f"UI 초기화 오류: {str(e)}")
+            # 기본 UI 설정
+            self.window.setWindowTitle("객체 탐지 시스템 (오류)")
+            self.window.resize(1280, 800)
+            self.window.statusBar().showMessage(f"UI 초기화 오류: {str(e)}")
 
     def setup_window(self):
         """윈도우 기본 설정"""
@@ -64,50 +85,31 @@ class MainWindowInit:
         else:
             # 기본 위치 및 크기
             self.window.resize(1280, 800)
-            self.window.setMinimumSize(1024, 768)
+            self.window.setMinimumSize(1024, 720)
 
         # 스플리터 크기 설정
         self.ui.contentSplitter.setSizes([800, 400])
 
     def setup_controls(self):
         """컨트롤 초기화"""
-        # 툴바 설정
-        self.ui.toolBar.setIconSize(Qt.QSize(24, 24))
-
         # 해상도 콤보박스 초기화
         resolutions = ["640x480", "800x600", "1280x720", "1920x1080"]
         self.ui.resolutionComboBox.addItems(resolutions)
 
-        # YOLO 관련 위젯 초기 상태 설정
-        self.ui.detectionStackedWidget.setCurrentIndex(0)  # HOG 페이지 기본 표시
-
-        # 결과 패널 초기화
-        self.ui.resultsTextLabel.setText("카메라가 연결되면 탐지된 객체가 여기에 표시됩니다.")
-
         # 초기 상태 설정
-        self.ui.action_Disconnect.setEnabled(False)
-        self.ui.action_StartDetection.setEnabled(False)
-        self.ui.action_StopDetection.setEnabled(False)
         self.ui.disconnectButton.setEnabled(False)
         self.ui.detectionCheckBox.setEnabled(False)
         self.ui.detectionModeComboBox.setEnabled(False)
-        self.ui.applyDetectorButton.setEnabled(False)
+        self.ui.modelSettingsButton.setEnabled(False)
 
     def load_settings(self):
         """설정 로드 및 적용"""
-        # 저장 경로
-        save_path = self.settings.value("system/save_path", os.path.join(os.path.expanduser("~"), "VisionDetect"))
-        self.ui.savePathEdit.setText(save_path)
+        # 저장 경로 (이제 UI에 표시되지 않지만 설정은 유지)
+        self.save_path = self.settings.value("system/save_path", os.path.join(os.path.expanduser("~"), "VisionDetect"))
 
-        # 로그 보관 일수
-        log_retention = self.settings.value("system/log_retention", 30, type=int)
-        self.ui.logRetentionSpinBox.setValue(log_retention)
-
-        # 체크박스 설정
-        self.ui.startMinimizedCheckBox.setChecked(self.settings.value("system/start_minimized", False, type=bool))
-        self.ui.autoStartCheckBox.setChecked(self.settings.value("system/auto_start", False, type=bool))
-        self.ui.autoConnectCameraCheckBox.setChecked(
-            self.settings.value("system/auto_connect_camera", False, type=bool))
+        # 체크박스 설정 (이제 UI에 표시되지 않지만 설정은 유지)
+        self.start_minimized = self.settings.value("system/start_minimized", False, type=bool)
+        self.auto_connect_camera = self.settings.value("system/auto_connect_camera", False, type=bool)
 
         logger.debug("사용자 설정 로드 완료")
 
@@ -125,11 +127,9 @@ class MainWindowInit:
         self.settings.setValue("window/geometry", self.window.saveGeometry())
 
         # 시스템 설정 저장
-        self.settings.setValue("system/save_path", self.ui.savePathEdit.text())
-        self.settings.setValue("system/log_retention", self.ui.logRetentionSpinBox.value())
-        self.settings.setValue("system/start_minimized", self.ui.startMinimizedCheckBox.isChecked())
-        self.settings.setValue("system/auto_start", self.ui.autoStartCheckBox.isChecked())
-        self.settings.setValue("system/auto_connect_camera", self.ui.autoConnectCameraCheckBox.isChecked())
+        self.settings.setValue("system/save_path", self.save_path)
+        self.settings.setValue("system/start_minimized", self.start_minimized)
+        self.settings.setValue("system/auto_connect_camera", self.auto_connect_camera)
 
         # 마지막 카메라 설정 저장
         last_camera = self.window.last_connected_camera
