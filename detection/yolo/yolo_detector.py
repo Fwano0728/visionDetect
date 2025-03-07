@@ -1,156 +1,131 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+# detection/yolo/yolo_detector.py
 
-import os
+# detector_manager.py 파일 상단에 추가
 import logging
-import numpy as np
-from detection.detector_base import DetectorBase
-
 logger = logging.getLogger(__name__)
+import os
+import numpy as np
+import time  # time 모듈 추가
+from typing import List, Dict, Tuple, Any
+
+from detection.detector_base import DetectorBase
 
 
 class YOLODetector(DetectorBase):
-    """
-    YOLO 기본 탐지기 클래스
-    모든 YOLO 버전 구현체의 기반 클래스
-    """
+    """YOLO 탐지기 일반 인터페이스"""
 
     def __init__(self):
-        super().__init__()
-        self._name = "YOLO"
-        self._version = "base"
-        self._classes = []
-        self._supported_models = []
+        self._detectors = {}
+        self._current_detector = None
+        self._model_name = "YOLO"
+        self._version = None
+        self._available_versions = ["v4"]
 
-    def load_classes(self, classes_file):
-        """
-        클래스 이름 파일 로드
+        # 지원되는 버전별 탐지기 초기화
+        self._init_detectors()
 
-        Args:
-            classes_file (str): 클래스 파일 경로
-
-        Returns:
-            list: 클래스 이름 목록
-        """
+    def _init_detectors(self):
+        """사용 가능한 YOLO 버전별 탐지기 초기화"""
         try:
-            if not os.path.exists(classes_file):
-                logger.error(f"클래스 파일을 찾을 수 없음: {classes_file}")
-                return []
+            # YOLOv4 탐지기 추가
+            from detection.yolo.yolov4_detector import YOLOv4Detector
+            self._detectors["v4"] = YOLOv4Detector()
+            logger.info("YOLOv4 탐지기 등록 완료")
 
-            with open(classes_file, 'r') as f:
-                class_names = [line.strip() for line in f.readlines()]
+            # 다른 YOLO 버전 탐지기 추가 (필요시)
+            # try:
+            #     from detection.yolo.yolov8_detector import YOLOv8Detector
+            #     self._detectors["v8"] = YOLOv8Detector()
+            #     self._available_versions.append("v8")
+            #     logger.info("YOLOv8 탐지기 등록 완료")
+            # except ImportError:
+            #     logger.warning("YOLOv8 탐지기를 불러올 수 없습니다. ultralytics 패키지가 필요합니다.")
 
-            logger.info(f"{len(class_names)}개 클래스 로드 완료")
-            return class_names
         except Exception as e:
-            logger.error(f"클래스 파일 로드 중 오류: {str(e)}")
-            return []
+            logger.error(f"YOLO 탐지기 초기화 중 오류 발생: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
 
-    def preprocess(self, frame, target_size=(416, 416)):
-        """
-        YOLO용 이미지 전처리
+    def initialize(self, **kwargs) -> Tuple[bool, str]:
+        """탐지기 초기화"""
+        logger.info(f"YOLO 초기화 - 파라미터: {kwargs}")
 
-        Args:
-            frame (numpy.ndarray): 원본 이미지
-            target_size (tuple): 타겟 이미지 크기
+        # 버전 선택
+        version = kwargs.get("version", "v4")
+        if version not in self._detectors:
+            logger.error(f"지원되지 않는 YOLO 버전: {version}")
+            logger.error(f"사용 가능한 버전: {list(self._detectors.keys())}")
+            return False, f"지원되지 않는 YOLO 버전: {version}"
 
-        Returns:
-            tuple: (전처리된 이미지, 원본 크기)
-        """
-        import cv2
+        # 선택한 버전의 탐지기 설정
+        detector = self._detectors[version]
+        self._current_detector = detector
+        self._version = version
 
-        # 원본 크기 저장
-        height, width = frame.shape[:2]
+        # 선택한 탐지기 초기화
+        logger.info(f"버전 {version} 탐지기 초기화 시도")
+        success, message = detector.initialize(**kwargs)
+        return success, message
 
-        # YOLO 입력 형식으로 변환
-        blob = cv2.dnn.blobFromImage(
-            frame,
-            1 / 255.0,
-            target_size,
-            swapRB=True,
-            crop=False
-        )
 
-        return blob, (width, height)
+    def detect(self, frame: np.ndarray, **kwargs) -> Tuple[np.ndarray, List[Dict[str, Any]], str, float]:
+        """객체 탐지 수행"""
+        if self._current_detector is None:
+            return frame, [], "YOLO 탐지기가 초기화되지 않았습니다.", 0.0
 
-    def process_detections(self, outputs, size, conf_threshold, nms_threshold):
-        """
-        YOLO 탐지 결과 처리
+        # 현재 설정된 탐지기로 탐지 수행
+        try:
+            start_time = time.time()
 
-        Args:
-            outputs: 네트워크 출력
-            size (tuple): 원본 이미지 크기 (width, height)
-            conf_threshold (float): 신뢰도 임계값
-            nms_threshold (float): 비최대 억제 임계값
+            # 반환 값 형식 처리
+            result = self._current_detector.detect(frame, **kwargs)
 
-        Returns:
-            list: 처리된 탐지 결과
-        """
-        import cv2
+            if isinstance(result, tuple):
+                if len(result) == 4:  # 4개 값 반환하는 경우
+                    return result
+                elif len(result) == 3:  # 3개 값만 반환하는 경우
+                    result_frame, detections, message = result
+                    detection_time = time.time() - start_time
+                    detection_fps = 1.0 / detection_time if detection_time > 0 else 0
+                    return result_frame, detections, message, detection_fps
 
-        width, height = size
-        boxes = []
-        confidences = []
-        class_ids = []
+            # 예상치 못한 형식
+            return frame, [], "잘못된 탐지 결과 형식", 0.0
+        except Exception as e:
+            return frame, [], f"탐지 오류: {str(e)}", 0.0
 
-        # 출력 처리 (구현체에서 재정의 가능)
-        # 기본 구현은 YOLOv4 형식
-        for output in outputs:
-            for detection in output:
-                scores = detection[5:]
-                class_id = np.argmax(scores)
-                confidence = scores[class_id]
+    @property
+    def name(self) -> str:
+        return self._model_name
 
-                if confidence > conf_threshold:
-                    # 객체 위치 계산
-                    center_x = int(detection[0] * width)
-                    center_y = int(detection[1] * height)
-                    w = int(detection[2] * width)
-                    h = int(detection[3] * height)
+    @property
+    def version(self) -> str:
+        return self._version or "Unknown"
 
-                    # 좌표 계산
-                    x = int(center_x - w / 2)
-                    y = int(center_y - h / 2)
+    @property
+    def available_versions(self) -> List[str]:
+        """사용 가능한 YOLO 버전 목록"""
+        versions = list(self._detectors.keys())
+        logger.info(f"사용 가능한 YOLO 버전: {versions}")  # 디버깅용
+        return versions if versions else ["v4"]  # 비어있으면 기본값 반환
 
-                    boxes.append([x, y, w, h])
-                    confidences.append(float(confidence))
-                    class_ids.append(class_id)
+    @property
+    def available_models(self) -> List[Dict[str, str]]:
+        """사용 가능한 모델 목록"""
+        models = []
+        for version, detector in self._detectors.items():
+            version_models = detector.available_models
+            models.extend(version_models)
+        return models
 
-        # 비최대 억제 적용
-        indices = cv2.dnn.NMSBoxes(boxes, confidences, conf_threshold, nms_threshold)
-
-        # 결과 가공
-        detections = []
-
-        if len(indices) > 0:
-            if isinstance(indices, tuple):
-                indices = indices[0]
-            elif isinstance(indices, np.ndarray) and len(indices.shape) > 1:
-                indices = indices.flatten()
-
-            for i in indices:
-                box = boxes[i]
-                class_id = class_ids[i]
-                confidence = confidences[i]
-                class_name = self._classes[class_id] if class_id < len(self._classes) else f"Class {class_id}"
-
-                detections.append({
-                    'box': box,
-                    'confidence': confidence,
-                    'class_id': class_id,
-                    'class_name': class_name
-                })
-
-        return detections
-
-    def load_model(self, model_path, config_path=None, **kwargs):
-        """
-        모델 로드 (자식 클래스에서 구현 필요)
-        """
-        raise NotImplementedError("자식 클래스에서 구현해야 합니다.")
-
-    def detect(self, frame, conf_threshold=0.5, nms_threshold=0.4, **kwargs):
-        """
-        객체 탐지 (자식 클래스에서 구현 필요)
-        """
-        raise NotImplementedError("자식 클래스에서 구현해야 합니다.")
+    def get_models_for_version(self, version: str) -> List[str]:
+        """특정 버전에 대한 모델 목록"""
+        logger.info(f"버전 {version}에 대한 모델 목록 요청")
+        if version in self._detectors:
+            detector = self._detectors[version]
+            if hasattr(detector, "available_models"):
+                models = [model["name"] for model in detector.available_models]
+                logger.info(f"버전 {version} 모델 목록: {models}")
+                return models
+        logger.warning(f"버전 {version}에 대한 모델 없음")
+        return ["YOLOv4-tiny", "YOLOv4"]  # 기본 모델 목록 제공

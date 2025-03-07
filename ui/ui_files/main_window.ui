@@ -19,107 +19,267 @@
   <property name="windowTitle">
    <string>객체 탐지 시스템</string>
   </property>
+  <property name="styleSheet">
+   <string notr="true">QMainWindow {
+    background-color: #f0f0f0;
+    color: #333333;
+}
+QLabel, QGroupBox {
+    color: #333333;
+}
+QGroupBox {
+    border: 1px solid #c0c0c0;
+    border-radius: 4px;
+    margin-top: 8px;
+    font-weight: bold;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 10px;
+    padding: 0 3px;
+}
+QStatusBar {
+    background-color: #e0e0e0;
+    color: #333333;
+    border-top: 1px solid #c0c0c0;
+}
+QToolBar {
+    background-color: #e8e8e8;
+    border-bottom: 1px solid #c0c0c0;
+    spacing: 4px;
+    padding: 2px;
+}
+QToolButton {
+    background-color: #f5f5f5;
+    border: 1px solid #c0c0c0;
+    border-radius: 4px;
+    padding: 4px;
+    color: #333333;
+    min-width: 70px;
+}
+QToolButton:hover {
+    background-color: #e0e0e0;
+}
+QToolButton:pressed {
+    background-color: #d0d0d0;
+}
+QSplitter::handle {
+    background-color: #c0c0c0;
+}
+QFrame {
+    border: none;
+}</string>
+  </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QHBoxLayout" name="horizontalLayout">
+   <layout class="QVBoxLayout" name="verticalLayout_2">
     <property name="spacing">
-     <number>0</number>
+     <number>4</number>
     </property>
     <property name="leftMargin">
-     <number>0</number>
+     <number>6</number>
     </property>
     <property name="topMargin">
-     <number>0</number>
+     <number>6</number>
     </property>
     <property name="rightMargin">
-     <number>0</number>
+     <number>6</number>
     </property>
     <property name="bottomMargin">
-     <number>0</number>
+     <number>6</number>
     </property>
     <item>
-     <widget class="QSplitter" name="mainSplitter">
+     <widget class="QSplitter" name="contentSplitter">
       <property name="orientation">
-       <enum>Qt::Horizontal</enum>
+       <enum>Qt::Vertical</enum>
       </property>
       <property name="handleWidth">
        <number>1</number>
       </property>
-      <widget class="QFrame" name="sidebarFrame">
-       <property name="frameShape">
-        <enum>QFrame::NoFrame</enum>
+      <widget class="QLabel" name="videoFrame">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>4</verstretch>
+        </sizepolicy>
        </property>
-       <property name="frameShadow">
-        <enum>QFrame::Raised</enum>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>200</height>
+        </size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">QLabel#videoFrame {
+    background-color: #e0e0e0;
+    border-radius: 4px;
+    border: 1px solid #c0c0c0;
+    color: #333333;
+}</string>
+       </property>
+       <property name="text">
+        <string>카메라가 연결되지 않았습니다.</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
        </property>
       </widget>
-      <widget class="QSplitter" name="contentSplitter">
-       <property name="orientation">
-        <enum>Qt::Vertical</enum>
+      <widget class="QGroupBox" name="resultsGroupBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>1</verstretch>
+        </sizepolicy>
        </property>
-       <property name="handleWidth">
-        <number>1</number>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>100</height>
+        </size>
        </property>
-       <widget class="QLabel" name="videoFrame">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-          <horstretch>0</horstretch>
-          <verstretch>3</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>200</height>
-         </size>
-        </property>
-        <property name="styleSheet">
-         <string notr="true">background-color: #2b2b2b;</string>
-        </property>
-        <property name="text">
-         <string>카메라가 연결되지 않았습니다.</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-       </widget>
-       <widget class="QGroupBox" name="resultsGroupBox">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-          <horstretch>0</horstretch>
-          <verstretch>1</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>100</height>
-         </size>
-        </property>
-        <property name="title">
-         <string>탐지 결과</string>
-        </property>
-        <layout class="QVBoxLayout" name="verticalLayout">
-         <item>
-          <widget class="QLabel" name="resultsText">
-           <property name="styleSheet">
-            <string notr="true">background-color: #2b2b2b; color: white;</string>
-           </property>
-           <property name="text">
-            <string>탐지된 객체가 없습니다.</string>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignCenter</set>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>150</height>
+        </size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">QGroupBox#resultsGroupBox {
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    margin-top: 12px;
+}</string>
+       </property>
+       <property name="title">
+        <string>탐지 결과</string>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout">
+        <item>
+         <widget class="QLabel" name="resultsText">
+          <property name="styleSheet">
+           <string notr="true">QLabel#resultsText {
+    background-color: #e8e8e8;
+    color: #333333;
+    border-radius: 3px;
+    border: 1px solid #c0c0c0;
+    padding: 8px;
+    font-family: 'Nanum Gothic', sans-serif;
+}</string>
+          </property>
+          <property name="text">
+           <string>탐지된 객체가 없습니다.</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </widget>
      </widget>
     </item>
    </layout>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QToolBar" name="mainToolBar">
+   <property name="windowTitle">
+    <string>메인 툴바</string>
+   </property>
+   <property name="iconSize">
+    <size>
+     <width>32</width>
+     <height>32</height>
+    </size>
+   </property>
+   <property name="toolButtonStyle">
+    <enum>Qt::ToolButtonTextUnderIcon</enum>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="quickStartAction"/>
+   <addaction name="quickDetectionAction"/>
+   <addaction name="separator"/>
+   <addaction name="cameraAction"/>
+   <addaction name="modelAction"/>
+   <addaction name="separator"/>
+   <addaction name="startStopAction"/>
+   <addaction name="toolsAction"/>
+  </widget>
+  <action name="cameraAction">
+   <property name="icon">
+    <iconset theme="camera-photo"/>
+   </property>
+   <property name="text">
+    <string>카메라 설정</string>
+   </property>
+   <property name="toolTip">
+    <string>카메라 연결 및 설정</string>
+   </property>
+  </action>
+  <action name="modelAction">
+   <property name="icon">
+    <iconset theme="system-search"/>
+   </property>
+   <property name="text">
+    <string>탐지 모델 설정</string>
+   </property>
+   <property name="toolTip">
+    <string>객체 탐지 모델 설정</string>
+   </property>
+  </action>
+  <action name="startStopAction">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset theme="media-playback-start"/>
+   </property>
+   <property name="text">
+    <string>탐지 시작</string>
+   </property>
+   <property name="toolTip">
+    <string>탐지 시작/중지</string>
+   </property>
+  </action>
+  <action name="toolsAction">
+   <property name="icon">
+    <iconset theme="preferences-system"/>
+   </property>
+   <property name="text">
+    <string>도구</string>
+   </property>
+   <property name="toolTip">
+    <string>추가 설정 및 도구</string>
+   </property>
+  </action>
+  <action name="quickStartAction">
+   <property name="icon">
+    <iconset theme="media-skip-forward"/>
+   </property>
+   <property name="text">
+    <string>빠른 연결</string>
+   </property>
+   <property name="toolTip">
+    <string>최근 설정으로 빠른 연결</string>
+   </property>
+  </action>
+  <action name="quickDetectionAction">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset theme="system-run"/>
+   </property>
+   <property name="text">
+    <string>빠른 탐지</string>
+   </property>
+   <property name="toolTip">
+    <string>기본 설정으로 탐지 시작</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>

@@ -1,5 +1,4 @@
-# 카메라 관리 코드
-# !/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
@@ -61,15 +60,54 @@ class CameraThread(QThread):
     def run(self):
         """스레드 실행 - 카메라에서 프레임을 지속적으로 가져옴"""
         try:
-            self.cap = cv2.VideoCapture(self.camera_id)
-            if not self.cap.isOpened():
-                error_msg = f"카메라 {self.camera_id} 열기 실패"
-                logger.error(error_msg)
-                self.error.emit(error_msg)
-                return
+            # 여러 백엔드로 카메라 열기 시도
+            success = False
 
-            # 포맷 설정 (MJPG 사용)
-            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+            # 백엔드 목록 (시도할 순서대로)
+            backends = [
+                (cv2.CAP_V4L2, "V4L2"),
+                (cv2.CAP_FFMPEG, "FFMPEG"),
+                (cv2.CAP_ANY, "기본")
+            ]
+
+            for backend, name in backends:
+                try:
+                    logger.info(f"{name} 백엔드로 카메라 열기 시도")
+                    self.cap = cv2.VideoCapture(self.camera_id, backend)
+                    if self.cap.isOpened():
+                        logger.info(f"{name} 백엔드로 카메라 열기 성공")
+                        success = True
+                        break
+                except Exception as be:
+                    logger.warning(f"{name} 백엔드로 카메라 열기 실패: {str(be)}")
+
+            if not success:
+                # 마지막 시도로 아무 백엔드 지정 없이 열기
+                self.cap = cv2.VideoCapture(self.camera_id)
+                if not self.cap.isOpened():
+                    error_msg = f"모든 백엔드로 카메라 {self.camera_id} 열기 실패"
+                    logger.error(error_msg)
+                    self.error.emit(error_msg)
+                    return
+
+            # 여러 코덱 시도 (가장 효율적인 것부터)
+            codecs = [
+                ('MJPG', 'Motion JPEG'),
+                ('YUYV', 'YUYV'),
+                ('H264', 'H.264')
+            ]
+
+            for codec_code, codec_name in codecs:
+                try:
+                    fourcc = cv2.VideoWriter_fourcc(*codec_code)
+                    self.cap.set(cv2.CAP_PROP_FOURCC, fourcc)
+                    # 정상적으로 적용되었는지 확인
+                    actual_fourcc = int(self.cap.get(cv2.CAP_PROP_FOURCC))
+                    if actual_fourcc == fourcc:
+                        logger.info(f"{codec_name} 코덱 설정 성공")
+                        break
+                except Exception as ce:
+                    logger.warning(f"{codec_name} 코덱 설정 실패: {str(ce)}")
 
             # 프레임 속도 설정
             self.cap.set(cv2.CAP_PROP_FPS, self.target_fps)
@@ -86,7 +124,7 @@ class CameraThread(QThread):
             actual_width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
             actual_height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
             actual_fourcc = int(self.cap.get(cv2.CAP_PROP_FOURCC))
-            fourcc_str = "".join([chr((actual_fourcc >> 8 * i) & 0xFF) for i in range(4)])
+            fourcc_str = "".join([chr((actual_fourcc >> 8 * i) & 0xFF) for i in range(4)]).strip()
 
             logger.info(
                 f"카메라 설정: ID={self.camera_id}, 해상도={actual_width}x{actual_height}, FPS={actual_fps}, 코덱={fourcc_str}")
@@ -97,15 +135,63 @@ class CameraThread(QThread):
             fps_start_time = time.time()
             fps_update_interval = 0.5  # FPS 업데이트 간격 (초)
 
+            # 재연결 관련 변수
+            consecutive_failures = 0
+            max_consecutive_failures = 5
+            reconnect_attempts = 0
+            max_reconnect_attempts = 3
+
             self.running = True
 
             while self.running:
                 ret, frame = self.cap.read()
                 if not ret:
-                    logger.warning("프레임 캡처 실패")
-                    self.error.emit("프레임 캡처 실패")
+                    consecutive_failures += 1
+                    logger.warning(f"프레임 캡처 실패 ({consecutive_failures}/{max_consecutive_failures})")
+
+                    if consecutive_failures >= max_consecutive_failures:
+                        if reconnect_attempts < max_reconnect_attempts:
+                            logger.warning(f"카메라 재연결 시도 ({reconnect_attempts + 1}/{max_reconnect_attempts})")
+
+                            # 카메라 자원 해제 및 재연결
+                            self.cap.release()
+                            time.sleep(1.0)  # 잠시 대기
+
+                            # 카메라 다시 열기
+                            self.cap = cv2.VideoCapture(self.camera_id)
+                            if self.cap.isOpened():
+                                # 설정 다시 적용
+                                fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+                                self.cap.set(cv2.CAP_PROP_FOURCC, fourcc)
+                                self.cap.set(cv2.CAP_PROP_FPS, self.target_fps)
+                                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
+                                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+
+                                # 카운터 초기화
+                                consecutive_failures = 0
+                                reconnect_attempts += 1
+                                logger.info("카메라 재연결 성공")
+                            else:
+                                reconnect_attempts += 1
+                                logger.error("카메라 재연결 실패")
+                                if reconnect_attempts >= max_reconnect_attempts:
+                                    error_msg = "최대 재연결 시도 횟수 초과, 카메라 연결 종료"
+                                    logger.error(error_msg)
+                                    self.error.emit(error_msg)
+                                    self.running = False
+                                    break
+                        else:
+                            error_msg = "최대 재연결 시도 횟수 초과, 카메라 연결 종료"
+                            logger.error(error_msg)
+                            self.error.emit(error_msg)
+                            self.running = False
+                            break
+
                     time.sleep(0.1)  # 잠시 대기 후 재시도
                     continue
+                else:
+                    # 성공적으로 프레임을 가져왔으면 오류 카운터 초기화
+                    consecutive_failures = 0
 
                 # 프레임 카운트 증가
                 frame_count += 1
@@ -123,7 +209,7 @@ class CameraThread(QThread):
                 # 프레임 준비 신호 발생
                 self.frame_ready.emit(frame)
 
-                # 과도한 CPU 사용 방지
+                # 과도한 CPU 사용 방지 (프레임 레이트에 맞춰 적절히 대기)
                 sleep_time = max(1.0 / (self.target_fps * 1.5), 0.001)  # 최소 지연 1ms
                 time.sleep(sleep_time)
 
@@ -133,7 +219,7 @@ class CameraThread(QThread):
             import traceback
             logger.error(traceback.format_exc())
         finally:
-            if self.cap:
+            if self.cap and self.cap.isOpened():
                 self.cap.release()
             logger.info("카메라 스레드 종료")
 
@@ -235,50 +321,47 @@ class CameraManager(QObject):
         logger.info(f"사용 가능한 카메라: {available_cameras}")
         return available_cameras
 
-    def connect_camera(self, camera_name, resolution="640x480", fps=30):
-        """
-        카메라 연결
+    def connect_camera(self, camera_name, resolution):
+        """카메라 연결"""
+        if camera_name not in self.available_cameras:
+            logger.error(f"카메라 '{camera_name}'을(를) 찾을 수 없습니다.")
+            return False, f"카메라 '{camera_name}'을(를) 찾을 수 없습니다."
 
-        Args:
-            camera_name (str): 카메라 이름
-            resolution (str): 해상도 (예: "640x480")
-            fps (int): 초당 프레임 수
+        # 이미 같은 카메라가 연결되어 있는지 확인
+        if self.is_connected() and self.current_camera == camera_name:
+            logger.info(f"카메라 '{camera_name}'은(는) 이미 연결되어 있습니다.")
+            return True, f"카메라 '{camera_name}'은(는) 이미 연결되어 있습니다."
 
-        Returns:
-            tuple: (성공 여부, 메시지)
-        """
+        # 다른 카메라가 연결되어 있는 경우에만 연결 해제
+        if self.is_connected() and self.current_camera != camera_name:
+            logger.info(f"다른 카메라가 연결되어 있습니다. 먼저 연결을 해제합니다.")
+            self.disconnect_camera()
+
+        # 카메라 ID 가져오기
+        camera_id = self.available_cameras[camera_name]
+        logger.info(f"카메라 '{camera_name}' 연결 시도 (ID: {camera_id}, 해상도: {resolution})")
+
         try:
-            if camera_name not in self.available_cameras:
-                error_msg = f"카메라 '{camera_name}'을(를) 찾을 수 없습니다."
-                logger.error(error_msg)
-                return False, error_msg
-
-            camera_id = self.available_cameras[camera_name]
-            logger.info(f"카메라 '{camera_name}' 연결 시도 (ID: {camera_id}, 해상도: {resolution}, FPS: {fps})")
-
-            # 이미 실행 중인 스레드가 있으면 중지
-            if self.camera_thread and self.camera_thread.isRunning():
-                self.disconnect_camera()
-
             # 새 스레드 시작
-            self.camera_thread = CameraThread(camera_id, resolution, fps, camera_model=camera_name)
+            self.camera_thread = CameraThread(camera_id, resolution, camera_model=camera_name)
 
             # 시그널 연결
             self.camera_thread.frame_ready.connect(self.process_frame)
             self.camera_thread.fps_updated.connect(self.update_fps)
             self.camera_thread.error.connect(self.handle_error)
 
+            # 스레드 시작
             self.camera_thread.start()
             self.current_camera = camera_name
 
-            success_msg = f"카메라 '{camera_name}' 연결됨 (해상도: {resolution}, FPS: {fps})"
-            logger.info(success_msg)
-            return True, success_msg
+            logger.info(f"카메라 '{camera_name}' 연결됨 (해상도: {resolution})")
+            return True, f"카메라 '{camera_name}' 연결됨"
 
         except Exception as e:
-            error_msg = f"카메라 연결 중 오류: {str(e)}"
-            logger.error(error_msg)
-            return False, error_msg
+            logger.error(f"카메라 연결 중 오류: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return False, f"카메라 연결 오류: {str(e)}"
 
     def disconnect_camera(self):
         """카메라 연결 해제"""

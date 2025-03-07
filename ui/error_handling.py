@@ -75,3 +75,37 @@ class ErrorHandler:
         self.logger.info(message)
         if self.parent:
             QMessageBox.information(self.parent, "알림", message)
+
+    @classmethod
+    def show_error(cls, parent, title, message, error_type="error", details=None):
+        """
+        오류 메시지 표시
+
+        Args:
+            parent: 부모 위젯
+            title: 오류 제목
+            message: 오류 메시지
+            error_type: 오류 유형 (error, warning, info 등)
+            details: 오류 상세 정보
+        """
+        from PyQt5.QtWidgets import QMessageBox
+
+        # 로그에 오류 기록
+        cls.log_error(message, details)
+
+        # 메시지 박스 표시
+        msg_box = QMessageBox(parent)
+        msg_box.setWindowTitle(title)
+        msg_box.setText(message)
+
+        if details:
+            msg_box.setDetailedText(details)
+
+        if error_type == "error":
+            msg_box.setIcon(QMessageBox.Critical)
+        elif error_type == "warning":
+            msg_box.setIcon(QMessageBox.Warning)
+        else:
+            msg_box.setIcon(QMessageBox.Information)
+
+        msg_box.exec_()

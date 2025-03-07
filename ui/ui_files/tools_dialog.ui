@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ToolsDialog</class>
+ <widget class="QDialog" name="ToolsDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>400</width>
+    <height>300</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>350</width>
+    <height>0</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>도구</string>
+  </property>
+  <property name="modal">
+   <bool>true</bool>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">QDialog {
+    background-color: #333333;
+    color: #f0f0f0;
+}
+QLabel {
+    color: #f0f0f0;
+}
+QGroupBox {
+    background-color: #3c3c3c;
+    border-radius: 4px;
+    border: 1px solid #505050;
+    margin-top: 10px;
+    color: #f0f0f0;
+    font-weight: bold;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 10px;
+    padding: 0 5px;
+}
+QPushButton {
+    background-color: #505050;
+    color: #f0f0f0;
+    border: none;
+    border-radius: 3px;
+    padding: 6px;
+    min-height: 25px;
+}
+QPushButton:hover {
+    background-color: #606060;
+}
+QPushButton#objectSelectionButton {
+    background-color: #2196f3;
+    color: white;
+}
+QPushButton#recordingButton {
+    background-color: #ff9800;
+    color: white;
+}</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QGroupBox" name="toolsGroup">
+     <property name="title">
+      <string>기타 도구</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_2">
+      <item>
+       <widget class="QPushButton" name="objectSelectionButton">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>35</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>탐지 객체 선택</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="recordingButton">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>35</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>녹화 설정</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item>
+    <widget class="QPushButton" name="closeButton">
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>30</height>
+      </size>
+     </property>
+     <property name="text">
+      <string>닫기</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

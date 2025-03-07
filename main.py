@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+# main.py
 """
 객체 탐지 시스템 메인 스크립트
 """
+import cv2
+print(f"OpenCV 버전: {cv2.__version__}")
 
 import sys
 import os

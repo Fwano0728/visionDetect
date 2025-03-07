@@ -1,280 +1,352 @@
-#!/usr/bin/env python3
+# 탐지 모델 선택 코드
+# !/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# detection/detector_manager.py
 
-import os
-import time
+# detector_manager.py 파일 상단에 추가
 import logging
+logger = logging.getLogger(__name__)
+import os
+import importlib
+import inspect
+import logging
+import numpy as np
+import time  # time 모듈 추가
+from typing import Dict, List, Tuple, Any
 from PyQt5.QtCore import QObject, pyqtSignal
+
+from detection.detector_base import DetectorBase
 
 logger = logging.getLogger(__name__)
 
 
 class DetectorManager(QObject):
-    """모든 객체 탐지 알고리즘을 관리하는 클래스"""
+    """탐지기 관리 클래스"""
 
     # 시그널 정의
     detection_result_signal = pyqtSignal(str)
-    detection_complete_signal = pyqtSignal(object, list, str)
+    detection_fps_updated = pyqtSignal(float)  # 탐지 FPS 업데이트를 위한 새 시그널
+
 
     def __init__(self):
         super().__init__()
-        self.detector_type = None
-        self.detector_version = None
-        self.detector_model = None
-        self.detector_params = {}
-        self.current_detector = None
-        self.detectors = {}
 
-        # 초기화
-        self._init_detectors()
-        logger.info("탐지기 매니저 초기화 완료")
+        self.detectors = {}  # 등록된 탐지기
+        self.active_detector = None  # 활성화된 탐지기
+        self.active_detector_info = {}  # 활성화된 탐지기 정보
+        self.detection_fps = 0.0  # 탐지 FPS 저장 변수
 
-    def _init_detectors(self):
-        """사용 가능한 모든 탐지기 초기화"""
-        # OpenCV HOG 탐지기
-        from detection.opencv.hog_detector import HOGDetector
-        self.detectors["OpenCV-HOG"] = {
-            "versions": ["Default"],
-            "models": {"Default": ["HOG-Default"]},
-            "class": HOGDetector
-        }
+        # 탐지기 자동 등록
+        self._register_detectors()
 
-        # YOLO 탐지기
+        # 비동기 처리를 위한 탐지 스레드
+        self.detection_thread = None
+        self.detection_fps = 0.0
+
+    def _register_detectors(self):
+        """탐지기 자동 등록"""
+        # 기본 경로 설정
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        logger.info(f"탐지기 기본 디렉토리: {base_dir}")
+
+        # YOLO 탐지기 직접 등록
         try:
-            from detection.yolo.yolov4_detector import YOLOv4Detector
+            from detection.yolo.yolo_detector import YOLODetector
+            yolo_detector = YOLODetector()
             self.detectors["YOLO"] = {
-                "versions": ["v4"],
-                "models": {"v4": [model["name"] for model in YOLOv4Detector().available_models]},
-                "class": {
-                    "v4": YOLOv4Detector
-                }
+                "instance": yolo_detector,
+                "module": "detection.yolo.yolo_detector",
+                "class": "YOLODetector"
             }
-
-            # YOLOv8 지원 확인
-            try:
-                from detection.yolo.yolov8_detector import YOLOv8Detector
-                # 기존 YOLO 버전 목록에 v8 추가
-                self.detectors["YOLO"]["versions"].append("v8")
-                self.detectors["YOLO"]["models"]["v8"] = [model["name"] for model in YOLOv8Detector().available_models]
-                self.detectors["YOLO"]["class"]["v8"] = YOLOv8Detector
-                logger.info("YOLOv8 지원 활성화됨")
-            except ImportError:
-                logger.warning("YOLOv8 지원을 위해 ultralytics 패키지가 필요합니다.")
-        except ImportError:
-            logger.warning("YOLO 탐지기를 가져올 수 없습니다.")
-
-        # 추가 탐지기 구현 시 여기에 추가
-
-    def get_available_detectors(self):
-        """사용 가능한 탐지기 유형 목록 반환"""
-        return list(self.detectors.keys())
-
-    def get_available_versions(self, detector_type):
-        """지정된 탐지기 유형에 대한 사용 가능한 버전 목록 반환"""
-        if detector_type in self.detectors:
-            return self.detectors[detector_type]["versions"]
-        return []
-
-    def get_available_models(self, detector_type, version):
-        """지정된 탐지기 유형 및 버전에 대한 사용 가능한 모델 목록 반환"""
-        if detector_type in self.detectors:
-            if version in self.detectors[detector_type]["models"]:
-                return self.detectors[detector_type]["models"][version]
-        return []
-
-    def set_detector(self, detector_type, version=None, model=None, **params):
-        """
-        탐지기 설정
-
-        Args:
-            detector_type (str): 탐지기 유형 (YOLO, OpenCV-HOG 등)
-            version (str, optional): 탐지기 버전
-            model (str, optional): 모델 이름
-            **params: 추가 매개변수
-
-        Returns:
-            tuple: (성공 여부, 메시지)
-        """
-        # 탐지기 비활성화
-        if detector_type is None:
-            # 기존 탐지기 해제
-            if self.current_detector:
-                self.current_detector.release()
-                self.current_detector = None
-
-            self.detector_type = None
-            self.detector_version = None
-            self.detector_model = None
-            self.detector_params = {}
-            logger.info("탐지기 비활성화됨")
-            return True, "탐지기가 비활성화되었습니다."
-
-        # 기존 설정과 같으면 아무것도 하지 않음
-        if (detector_type == self.detector_type and
-                version == self.detector_version and
-                model == self.detector_model and
-                params == self.detector_params):
-            logger.debug("탐지기 설정이 동일하여 변경 없음")
-            return True, "현재 설정과 동일합니다."
-
-        # 기존 탐지기 해제
-        if self.current_detector:
-            self.current_detector.release()
-            self.current_detector = None
-
-        # 새 탐지기 설정
-        if detector_type in self.detectors:
-            # HOG 탐지기는 버전과 모델이 고정됨
-            if detector_type == "OpenCV-HOG":
-                detector_class = self.detectors[detector_type]["class"]
-                detector_instance = detector_class()
-                success, message = detector_instance.load_model(**params)
-
-                if success:
-                    self.current_detector = detector_instance
-                    self.detector_type = detector_type
-                    self.detector_version = "Default"
-                    self.detector_model = "HOG-Default"
-                    self.detector_params = params
-                    logger.info(f"HOG 탐지기 설정 완료: {message}")
-                    return True, message
-                else:
-                    logger.error(f"HOG 탐지기 설정 실패: {message}")
-                    return False, message
-
-            # YOLO 탐지기는 버전과 모델 지정 필요
-            elif detector_type == "YOLO":
-                if not version or version not in self.detectors[detector_type]["versions"]:
-                    logger.error(f"잘못된 YOLO 버전: {version}")
-                    return False, f"잘못된 YOLO 버전: {version}"
-
-                if not model or model not in self.detectors[detector_type]["models"][version]:
-                    logger.error(f"잘못된 YOLO 모델: {model}")
-                    return False, f"잘못된 YOLO 모델: {model}"
-
-                # 모델 파일 경로 설정
-                models_dir = os.path.join("models", "yolo")
-                os.makedirs(models_dir, exist_ok=True)
-
-                # 탐지기 클래스 인스턴스 생성
-                detector_class = self.detectors[detector_type]["class"][version]
-                detector_instance = detector_class()
-
-                # 모델 정보 가져오기
-                model_info = None
-                for m in detector_instance.available_models:
-                    if m["name"] == model:
-                        model_info = m
-                        break
-
-                if not model_info:
-                    logger.error(f"모델 정보를 찾을 수 없음: {model}")
-                    return False, f"모델 정보를 찾을 수 없습니다: {model}"
-
-                # 모델 파일 경로
-                weights_path = os.path.join(models_dir, model_info["weights"])
-                config_path = os.path.join(models_dir, model_info.get("config", "")) if "config" in model_info else None
-
-                # 파일 존재 여부 확인
-                if not os.path.exists(weights_path):
-                    logger.error(f"모델 파일을 찾을 수 없음: {weights_path}")
-                    return False, f"모델 파일을 찾을 수 없습니다: {weights_path}"
-
-                if config_path and not os.path.exists(config_path):
-                    logger.error(f"설정 파일을 찾을 수 없음: {config_path}")
-                    return False, f"설정 파일을 찾을 수 없습니다: {config_path}"
-
-                # 모델 로드
-                load_params = {**params}
-                if config_path:
-                    success, message = detector_instance.load_model(weights_path, config_path, **load_params)
-                else:
-                    success, message = detector_instance.load_model(weights_path, **load_params)
-
-                if success:
-                    self.current_detector = detector_instance
-                    self.detector_type = detector_type
-                    self.detector_version = version
-                    self.detector_model = model
-                    self.detector_params = params
-                    logger.info(f"{detector_type} {version} ({model}) 설정 완료: {message}")
-                    return True, message
-                else:
-                    logger.error(f"{detector_type} {version} ({model}) 설정 실패: {message}")
-                    return False, message
-
-        # 지원되지 않는 탐지기 유형
-        logger.error(f"지원되지 않는 탐지기 유형: {detector_type}")
-        return False, f"지원되지 않는 탐지기 유형: {detector_type}"
-
-    def is_active(self):
-        """탐지기 활성화 상태 확인"""
-        return self.current_detector is not None
-
-    def get_current_detector_info(self):
-        """현재 설정된 탐지기 정보 반환"""
-        if not self.current_detector:
-            return {"status": "미설정"}
-
-        return {
-            "type": self.detector_type,
-            "version": self.detector_version,
-            "model": self.detector_model,
-            "params": self.detector_params,
-            "status": "설정됨"
-        }
-
-    def detect(self, frame):
-        """
-        객체 탐지 수행
-
-        Args:
-            frame (numpy.ndarray): 분석할 이미지 프레임
-
-        Returns:
-            tuple: (시각화된 프레임, 탐지 결과 목록, 결과 텍스트)
-        """
-        if not self.current_detector:
-            return frame, [], "탐지기가 설정되지 않았습니다."
-
-        try:
-            # 탐지 시작 시간 측정
-            start_time = time.time()
-
-            # 탐지 매개변수
-            conf_threshold = self.detector_params.get('conf_threshold', 0.5)
-            nms_threshold = self.detector_params.get('nms_threshold', 0.4)
-
-            # 객체 탐지 수행
-            detections = self.current_detector.detect(frame, conf_threshold, nms_threshold)
-
-            # 결과 시각화
-            result_frame = self.current_detector.postprocess(frame, detections)
-
-            # 탐지 시간 측정
-            detection_time = time.time() - start_time
-
-            # 결과 텍스트 생성
-            person_count = sum(1 for d in detections if d.get('class_name', '').lower() == 'person')
-            result_text = f"탐지된 사람: {person_count}명"
-
-            if len(detections) > person_count:
-                other_count = len(detections) - person_count
-                result_text += f"\n기타 객체: {other_count}개"
-
-            result_text += f"\n처리 시간: {detection_time:.3f}초"
-
-            # 결과 시그널 발생
-            self.detection_result_signal.emit(result_text)
-
-            # 완료 시그널 발생
-            self.detection_complete_signal.emit(result_frame, detections, result_text)
-
-            return result_frame, detections, result_text
-
+            logger.info("YOLO 탐지기 직접 등록 완료")
         except Exception as e:
-            logger.error(f"탐지 중 오류 발생: {str(e)}")
+            logger.error(f"YOLO 탐지기 등록 실패: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
 
-            return frame, [], f"탐지 중 오류 발생: {str(e)}"
+        # 하위 디렉토리 탐색 (다른 탐지기가 있다면)
+        for subdir in ['opencv', 'deepstream']:  # 'yolo'는 이미 직접 등록했으므로 제외
+            detector_dir = os.path.join(base_dir, subdir)
+            logger.debug(f"탐지기 하위 디렉토리 검색: {detector_dir}")
+
+            if not os.path.isdir(detector_dir):
+                logger.debug(f"디렉토리가 존재하지 않음: {detector_dir}")
+                continue
+
+            # 파이썬 파일 탐색
+            for filename in os.listdir(detector_dir):
+                if not filename.endswith('.py') or filename.startswith('__'):
+                    continue
+
+                # 모듈 로드
+                module_name = f"detection.{subdir}.{filename[:-3]}"
+                try:
+                    module = importlib.import_module(module_name)
+
+                    # DetectorBase를 상속한 클래스 찾기
+                    for name, obj in inspect.getmembers(module):
+                        if (inspect.isclass(obj) and
+                                issubclass(obj, DetectorBase) and
+                                obj != DetectorBase):
+
+                            try:
+                                # 탐지기 인스턴스 생성
+                                detector = obj()
+                                detector_type = f"{detector.name}"
+
+                                # 이미 등록된 탐지기 확인
+                                if detector_type in self.detectors:
+                                    logger.warning(f"중복된 탐지기 유형: {detector_type}")
+                                    continue
+
+                                # 탐지기 등록
+                                self.detectors[detector_type] = {
+                                    "instance": detector,
+                                    "module": module_name,
+                                    "class": name
+                                }
+
+                                logger.info(f"탐지기 등록: {detector_type} ({module_name}.{name})")
+                            except Exception as e:
+                                logger.error(f"탐지기 등록 실패: {module_name}.{name}, 오류: {str(e)}")
+
+                except Exception as e:
+                    logger.error(f"모듈 로드 실패: {module_name}, 오류: {str(e)}")
+
+        logger.info(f"총 {len(self.detectors)}개 탐지기 등록 완료")
+        logger.info(f"등록된 탐지기 목록: {list(self.detectors.keys())}")
+
+    def get_available_detectors(self) -> List[str]:
+        """사용 가능한 탐지기 목록 반환"""
+        return list(self.detectors.keys())
+
+    def get_available_versions(self, detector_type: str) -> List[str]:
+        """사용 가능한 버전 목록 반환"""
+        if detector_type in self.detectors:
+            detector = self.detectors[detector_type]["instance"]
+            if hasattr(detector, "available_versions"):
+                return detector.available_versions
+            return [detector.version]
+        return []
+
+    def get_available_models(self, detector_type: str, version: str = None) -> List[str]:
+        """사용 가능한 모델 목록 반환"""
+        logger.info(f"모델 목록 요청: 탐지기={detector_type}, 버전={version}")
+
+        if detector_type in self.detectors:
+            detector = self.detectors[detector_type]["instance"]
+
+            # YOLO 탐지기인 경우
+            if detector_type == "YOLO" and hasattr(detector, "get_models_for_version"):
+                models = detector.get_models_for_version(version)
+                logger.info(f"YOLO {version} 버전 모델 목록: {models}")
+                return models
+
+            # 일반적인 경우
+            if hasattr(detector, "available_models"):
+                models = detector.available_models
+                # 모델 이름만 추출
+                model_names = [model["name"] for model in models if version is None or model.get("version") == version]
+                logger.info(f"모델 목록: {model_names}")
+                return model_names
+
+        logger.warning(f"모델을 찾을 수 없음: 탐지기={detector_type}, 버전={version}")
+        return []
+
+    def set_detector(self, detector_type: str, version: str = None, model: str = None, **params) -> Tuple[bool, str]:
+        """탐지기 설정"""
+        try:
+            # 탐지기 비활성화
+            if detector_type is None:
+                self.active_detector = None
+                self.active_detector_info = {}
+
+                # 실행 중인 경우 탐지 스레드 중지
+                if hasattr(self, 'detection_thread') and self.detection_thread and self.detection_thread.isRunning():
+                    self.detection_thread.stop()
+                    self.detection_thread = None
+
+                return True, "탐지기가 비활성화되었습니다."
+
+            # 탐지기 존재 확인
+            if detector_type not in self.detectors:
+                return False, f"지원되지 않는 탐지기 유형: {detector_type}"
+
+            detector = self.detectors[detector_type]["instance"]
+
+            # 초기화 매개변수 준비
+            init_params = {
+                "version": version,
+                "model": model,
+                **params
+            }
+
+            # 탐지기 초기화
+            try:
+                success, message = detector.initialize(**init_params)
+                if success:
+                    self.active_detector = detector
+                    self.active_detector_info = {
+                        "type": detector_type,
+                        "version": version,
+                        "model": model,
+                        "params": params,
+                        "status": "설정됨"
+                    }
+
+                    # 탐지 스레드 초기화 및 시작
+                    if hasattr(self,
+                               'detection_thread') and self.detection_thread and self.detection_thread.isRunning():
+                        self.detection_thread.stop()
+
+                    # detection_thread 속성이 있는지 확인
+                    if hasattr(self, 'detection_thread'):
+                        from detection.detection_thread import DetectionThread
+                        self.detection_thread = DetectionThread(self)
+                        self.detection_thread.detection_complete.connect(self._handle_detection_result)
+                        self.detection_thread.error.connect(self._handle_thread_error)
+                        self.detection_thread.start()
+
+                    return True, message
+                else:
+                    return False, message
+            except Exception as e:
+                logger.error(f"탐지기 초기화 중 오류: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
+                return False, f"탐지기 초기화 중 오류: {str(e)}"
+
+        except Exception as e:
+            logger.error(f"탐지기 설정 중 오류: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return False, f"탐지기 설정 중 오류: {str(e)}"
+
+    def _handle_thread_error(self, error_message):
+        """스레드 오류 처리"""
+        logger.error(f"탐지 스레드 오류: {error_message}")
+
+    def _handle_detection_result(self, result_frame, detections, message, fps):
+        """처리 스레드에서 결과 처리"""
+        # 마지막 탐지 결과 저장
+        self.active_detector_info["last_detections"] = detections
+        self.active_detector_info["last_message"] = message
+        self.active_detector_info["result_frame"] = result_frame
+
+        # 탐지 FPS 업데이트
+        self.detection_fps = fps
+
+        # 결과 텍스트 생성
+        result_text = self._generate_result_text(detections, message)
+
+        # 시그널 발생
+        self.detection_result_signal.emit(result_text)
+
+    def process_frame(self, frame):
+        """비동기 처리를 위한 프레임 전달"""
+        if self.is_active() and self.detection_thread and self.detection_thread.isRunning():
+            self.detection_thread.set_frame(frame)
+            return True
+        return False
+
+    def get_current_detector_info(self) -> Dict[str, Any]:
+        """현재 설정된 탐지기 정보 반환"""
+        if not self.active_detector:
+            return {"status": "미설정"}
+
+        return self.active_detector_info
+
+    def is_active(self) -> bool:
+        """탐지기 활성화 상태 확인"""
+        return self.active_detector is not None
+
+    def detect(self, frame: np.ndarray) -> Tuple[np.ndarray, List[Dict[str, Any]], str, float]:
+        """객체 탐지 수행"""
+        if not self.active_detector:
+            return frame, [], "탐지기가 설정되지 않았습니다.", 0.0
+
+        # 탐지기에 프레임 전달
+        start_time = time.time()
+
+        try:
+            # 다양한 반환 값 패턴 처리
+            result = self.active_detector.detect(
+                frame, **self.active_detector_info.get("params", {})
+            )
+
+            # 결과 길이에 따라 처리
+            if isinstance(result, tuple):
+                if len(result) == 4:  # 새 형식 (4개 값)
+                    result_frame, detections, message, detection_fps = result
+                elif len(result) == 3:  # 이전 형식 (3개 값)
+                    result_frame, detections, message = result
+                    detection_time = time.time() - start_time
+                    detection_fps = 1.0 / detection_time if detection_time > 0 else 0
+                else:
+                    # 예상치 못한 형식
+                    raise ValueError(f"예상치 못한 반환 값 개수: {len(result)}")
+            else:
+                # 튜플이 아닌 형식 처리
+                result_frame = result
+                detections = []
+                message = "탐지 결과 형식 오류"
+                detection_time = time.time() - start_time
+                detection_fps = 1.0 / detection_time if detection_time > 0 else 0
+
+        except Exception as e:
+            # 오류 발생 시 기본값 반환
+            logger.error(f"탐지 오류: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
+            result_frame = frame.copy()
+            detections = []
+            message = f"탐지 중 오류 발생: {str(e)}"
+            detection_fps = 0.0
+
+        # 마지막 탐지 결과 저장
+        self.active_detector_info["last_detections"] = detections
+        self.active_detector_info["last_message"] = message
+        self.detection_fps = detection_fps
+
+        # FPS 업데이트 신호 발생
+        self.detection_fps_updated.emit(detection_fps)
+
+        # 결과 텍스트 생성
+        result_text = self._generate_result_text(detections, message)
+
+        # 시그널 발생
+        self.detection_result_signal.emit(result_text)
+
+        return result_frame, detections, result_text, detection_fps
+
+    def _generate_result_text(self, detections: List[Dict[str, Any]], message: str) -> str:
+        """탐지 결과 텍스트 생성"""
+        if not detections:
+            return message or "탐지된 객체가 없습니다."
+
+        # 객체별 개수 계산
+        object_counts = {}
+        for detection in detections:
+            class_name = detection.get("class_name", "unknown")
+            object_counts[class_name] = object_counts.get(class_name, 0) + 1
+
+        # 결과 텍스트 생성
+        result_text = "탐지 결과:\n"
+        for class_name, count in object_counts.items():
+            result_text += f"- {class_name}: {count}개\n"
+
+        # 추가 메시지가 있으면 포함
+        if message:
+            result_text += f"\n{message}"
+
+        return result_text
+
+    def set_object_detection_settings(self, settings: Dict[str, Any]) -> None:
+        """객체 탐지 설정 적용"""
+        if self.active_detector and hasattr(self.active_detector, "set_detection_settings"):
+            self.active_detector.set_detection_settings(settings)
+
+    def get_detection_fps(self) -> float:
+        """현재 탐지 FPS 반환"""
+        return self.detection_fps

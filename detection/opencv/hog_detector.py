@@ -1,162 +1,104 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# detection/opencv/hog_detector.py
 
-import logging
 import cv2
 import numpy as np
-from detection.detector_base import DetectorBase
+from typing import List, Dict, Tuple, Any
 
-logger = logging.getLogger(__name__)
+from detection.detector_base import DetectorBase
 
 
 class HOGDetector(DetectorBase):
-    """OpenCV HOG 사람 탐지기 구현"""
+    """HOG 특성을 이용한 사람 탐지기"""
 
     def __init__(self):
-        super().__init__()
-        self._name = "OpenCV-HOG"
-        self._version = "Default"
         self._hog = None
-        self._supported_models = [
-            {"name": "HOG-Default"}
-        ]
+        self._params = {}
 
-    def load_model(self, model_path=None, config_path=None, **kwargs):
-        """
-        HOG 사람 탐지기 초기화
-
-        Args:
-            model_path (str, optional): 미사용 (호환성 유지용)
-            config_path (str, optional): 미사용 (호환성 유지용)
-            **kwargs: 추가 매개변수
-
-        Returns:
-            tuple: (성공 여부, 메시지)
-        """
+    def initialize(self, **kwargs) -> Tuple[bool, str]:
+        """탐지기 초기화"""
         try:
-            # HOG 디스크립터 초기화
             self._hog = cv2.HOGDescriptor()
             self._hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
 
-            # 클래스 설정 (HOG는 사람만 탐지)
-            self._classes = ["person"]
-
-            self._initialized = True
-            logger.info("HOG 사람 탐지기 초기화 완료")
+            # 매개변수 저장
+            self._params = {
+                "winStride": kwargs.get("winStride", (8, 8)),
+                "padding": kwargs.get("padding", (4, 4)),
+                "scale": kwargs.get("scale", 1.05)
+            }
 
             return True, "HOG 사람 탐지기 초기화 완료"
-
         except Exception as e:
-            logger.error(f"HOG 탐지기 초기화 실패: {str(e)}")
             return False, f"HOG 탐지기 초기화 실패: {str(e)}"
 
-    def detect(self, frame, conf_threshold=0.5, nms_threshold=0.4, **kwargs):
-        """
-        HOG를 사용하여 사람 탐지
+    def detect(self, frame: np.ndarray, **kwargs) -> Tuple[np.ndarray, List[Dict[str, Any]], str]:
+        """객체 탐지 수행"""
+        if self._hog is None:
+            return frame, [], "탐지기가 초기화되지 않았습니다."
 
-        Args:
-            frame (numpy.ndarray): 분석할 이미지 프레임
-            conf_threshold (float): 신뢰도 임계값 (HOG에서는 제한적으로 사용)
-            nms_threshold (float): 미사용 (호환성 유지용)
-            **kwargs: 추가 매개변수
+        # 파라미터 업데이트 (런타임에 변경 가능)
+        params = self._params.copy()
+        params.update(kwargs)
 
-        Returns:
-            list: 탐지된 객체 목록
-        """
-        if not self._initialized or self._hog is None:
-            logger.warning("HOG 탐지기가 초기화되지 않음")
-            return []
+        # 성능을 위해 이미지 크기 조정
+        height, width = frame.shape[:2]
+        if width > 800:
+            scale_factor = 800 / width
+            frame_resized = cv2.resize(frame, (int(width * scale_factor), int(height * scale_factor)))
+        else:
+            scale_factor = 1.0
+            frame_resized = frame
 
-        try:
-            # 성능을 위해 이미지 크기 조정
-            height, width = frame.shape[:2]
-            scale = kwargs.get('scale', 1.0)
+        # HOG 디스크립터로 사람 탐지
+        boxes, weights = self._hog.detectMultiScale(
+            frame_resized,
+            winStride=params["winStride"],
+            padding=params["padding"],
+            scale=params["scale"]
+        )
 
-            if width > 800 and scale == 1.0:
-                scale = 800 / width
-
-            if scale != 1.0:
-                frame_resized = cv2.resize(frame, (int(width * scale), int(height * scale)))
-            else:
-                frame_resized = frame
-
-            # HOG 매개변수
-            win_stride = kwargs.get('win_stride', (8, 8))
-            padding = kwargs.get('padding', (4, 4))
-            scale_factor = kwargs.get('scale_factor', 1.05)
-
-            # HOG 디스크립터를 사용하여 사람 탐지
-            boxes, weights = self._hog.detectMultiScale(
-                frame_resized,
-                winStride=win_stride,
-                padding=padding,
-                scale=scale_factor
-            )
-
-            # 결과 처리
-            detections = []
-
-            for i, (x, y, w, h) in enumerate(boxes):
-                # 원본 이미지 크기에 맞게 박스 크기 조정
-                if scale != 1.0:
-                    x = int(x / scale)
-                    y = int(y / scale)
-                    w = int(w / scale)
-                    h = int(h / scale)
-
-                # 신뢰도
-                confidence = float(weights[i]) if i < len(weights) else 0.5
-
-                # 신뢰도 임계값 적용
-                if confidence >= conf_threshold:
-                    detections.append({
-                        'box': [x, y, w, h],
-                        'confidence': confidence,
-                        'class_id': 0,
-                        'class_name': 'person'
-                    })
-
-            # 결과 로깅
-            logger.debug(f"HOG 탐지 결과: {len(detections)}명의 사람")
-
-            return detections
-
-        except Exception as e:
-            logger.error(f"HOG 탐지 중 오류: {str(e)}")
-            import traceback
-            logger.error(traceback.format_exc())
-            return []
-
-    def postprocess(self, frame, detections):
-        """
-        HOG 탐지 결과 시각화
-
-        Args:
-            frame (numpy.ndarray): 원본 이미지 프레임
-            detections (list): 탐지 결과 목록
-
-        Returns:
-            numpy.ndarray: 시각화된 프레임
-        """
+        # 결과 이미지에 박스 그리기
         result_frame = frame.copy()
+        detections = []
 
-        for detection in detections:
-            box = detection.get('box', [0, 0, 0, 0])
-            confidence = detection.get('confidence', 0)
+        for i, (x, y, w, h) in enumerate(boxes):
+            # 원본 이미지 크기에 맞게 박스 크기 조정
+            if scale_factor != 1.0:
+                x = int(x / scale_factor)
+                y = int(y / scale_factor)
+                w = int(w / scale_factor)
+                h = int(h / scale_factor)
 
-            x, y, w, h = box
-
-            # 사각형 그리기 (녹색)
+            # 박스 그리기
             cv2.rectangle(result_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            confidence = float(weights[i]) if i < len(weights) else 0.5
+            label = f'Person {confidence:.2f}'
+            cv2.putText(result_frame, label, (x, y - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-            # 레이블 그리기
-            label = f"Person {confidence:.2f}"
-            cv2.putText(result_frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            # 탐지 정보 저장
+            detections.append({
+                "class_id": 0,
+                "class_name": "person",
+                "confidence": confidence,
+                "box": [x, y, w, h]
+            })
 
-        return result_frame
+        # 처리 시간 정보
+        message = f"HOG 탐지 완료: {len(detections)}개 객체"
 
-    def release(self):
-        """리소스 해제"""
-        self._hog = None
-        self._initialized = False
-        logger.info("HOG 리소스 해제 완료")
+        return result_frame, detections, message
+
+    @property
+    def name(self) -> str:
+        return "OpenCV-HOG"
+
+    @property
+    def version(self) -> str:
+        return "Default"
+
+    @property
+    def available_models(self) -> List[Dict[str, str]]:
+        return [{"name": "HOG-Default", "version": "Default"}]
